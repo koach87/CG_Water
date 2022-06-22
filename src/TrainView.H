@@ -84,8 +84,13 @@ class TrainView : public Fl_Gl_Window
 		// pick a point (for when the mouse goes down)
 		void doPick();
 
-		//set ubo
+		// set ubo
 		void setUBO();
+		
+		// tiles
+		void initTileShader();
+		void drawTiles();
+
 	public:
 		ArcBallCam		arcball;			// keep an ArcBall for the UI
 		int				selectedCube = -1;  // simple - just remember which cube is selected
@@ -97,6 +102,12 @@ class TrainView : public Fl_Gl_Window
 		Texture2D* texture	= nullptr;
 		VAO* plane			= nullptr;
 		UBO* commom_matrices= nullptr;
+
+		// tiles
+		Shader* tilesShader = nullptr;
+		VAO* tiles = nullptr;
+		Texture2D* tilesTexture = nullptr;
+
 
 		//OpenAL
 		glm::vec3 source_pos;
