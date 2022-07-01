@@ -39,12 +39,11 @@
 #include "TrainWindow.H"
 #include "Utilities/3DUtils.H"
 
-
-
 #ifdef EXAMPLE_SOLUTION
 #	include "TrainExample/TrainExample.H"
 #endif
-
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
 
 //************************************************************************
 //
@@ -179,7 +178,7 @@ int TrainView::handle(int event)
 //========================================================================
 void TrainView::draw()
 {
-
+	t_time+=1.0f;
 	//*********************************************************************
 	//
 	// * Set up basic opengl informaiton
@@ -189,8 +188,10 @@ void TrainView::draw()
 	if (gladLoadGL())
 	{
 		//initiailize VAO, VBO, Shader...
-
-		initTileShader();
+		initTilesShader();
+		initSineWater();
+		initHeightWater();
+		initSkyboxShader();
 
 		if (!this->commom_matrices)
 			this->commom_matrices = new UBO();
@@ -317,6 +318,15 @@ void TrainView::draw()
 		GL_UNIFORM_BUFFER, /*binding point*/0, this->commom_matrices->ubo, 0, this->commom_matrices->size);
 
 	drawTiles();
+
+
+	if (tw->waveBrowser->value() == 1)
+		drawSineWater();
+	else if (tw->waveBrowser->value() == 2)
+		drawHeightWater();
+
+	// draw skybox
+	drawSkybox();
 }
 
 //************************************************************************
@@ -503,7 +513,147 @@ void TrainView::setUBO()
 }
 
 void TrainView::
-initTileShader()
+initSkyboxShader()
+{
+	if (!skyboxShader) {
+		this->skyboxShader = new Shader(PROJECT_DIR "/src/shaders/skyboxVS.glsl",
+			nullptr, nullptr, nullptr,
+			PROJECT_DIR "/src/shaders/skyboxFS.glsl");
+
+		GLfloat skyboxVertices[] = {
+
+			-1.0f,  1.0f, -1.0f,
+			-1.0f, -1.0f, -1.0f,
+			 1.0f, -1.0f, -1.0f,
+			 1.0f, -1.0f, -1.0f,
+			 1.0f,  1.0f, -1.0f,
+			-1.0f,  1.0f, -1.0f,
+
+			-1.0f, -1.0f,  1.0f,
+			-1.0f, -1.0f, -1.0f,
+			-1.0f,  1.0f, -1.0f,
+			-1.0f,  1.0f, -1.0f,
+			-1.0f,  1.0f,  1.0f,
+			-1.0f, -1.0f,  1.0f,
+
+			 1.0f, -1.0f, -1.0f,
+			 1.0f, -1.0f,  1.0f,
+			 1.0f,  1.0f,  1.0f,
+			 1.0f,  1.0f,  1.0f,
+			 1.0f,  1.0f, -1.0f,
+			 1.0f, -1.0f, -1.0f,
+
+			-1.0f, -1.0f,  1.0f,
+			-1.0f,  1.0f,  1.0f,
+			 1.0f,  1.0f,  1.0f,
+			 1.0f,  1.0f,  1.0f,
+			 1.0f, -1.0f,  1.0f,
+			-1.0f, -1.0f,  1.0f,
+
+			-1.0f,  1.0f, -1.0f,
+			 1.0f,  1.0f, -1.0f,
+			 1.0f,  1.0f,  1.0f,
+			 1.0f,  1.0f,  1.0f,
+			-1.0f,  1.0f,  1.0f,
+			-1.0f,  1.0f, -1.0f,
+
+			-1.0f, -1.0f, -1.0f,
+			-1.0f, -1.0f,  1.0f,
+			 1.0f, -1.0f, -1.0f,
+			 1.0f, -1.0f, -1.0f,
+			-1.0f, -1.0f,  1.0f,
+			 1.0f, -1.0f,  1.0f
+		};
+
+		//glGenVertexArrays(1, &this->skybox->vao);
+		//glGenBuffers(1, this->skybox->vbo);
+
+		//glBindVertexArray(this->skybox->vao);
+		//glBindBuffer(GL_ARRAY_BUFFER, this->skybox->vbo[0]);
+		//glBufferData(GL_ARRAY_BUFFER, sizeof(skyboxVertices), &skyboxVertices, GL_STATIC_DRAW);
+		//glEnableVertexAttribArray(0);
+		//glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+
+		// skybox VAO
+		glGenVertexArrays(1, &skyboxVAO);
+		glGenBuffers(1, &skyboxVBO);
+		glBindVertexArray(skyboxVAO);
+		glBindBuffer(GL_ARRAY_BUFFER, skyboxVBO);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(skyboxVertices), &skyboxVertices, GL_STATIC_DRAW);
+		glEnableVertexAttribArray(0);
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+
+		// load textures
+		vector<std::string> faces;
+		faces.push_back(PROJECT_DIR"/Images/skybox/left.jpg");
+		faces.push_back(PROJECT_DIR"/Images/skybox/right.jpg");
+		faces.push_back(PROJECT_DIR"/Images/skybox/top.jpg");
+		faces.push_back(PROJECT_DIR"/Images/skybox/bottom.jpg");
+		faces.push_back(PROJECT_DIR"/Images/skybox/front.jpg");
+		faces.push_back(PROJECT_DIR"/Images/skybox/back.jpg");
+		cubemapTexture = loadCubemap(faces);
+	}
+	
+}
+unsigned int TrainView::
+loadCubemap(std::vector<std::string> faces)
+{
+	unsigned int textureID;
+	glGenTextures(1, &textureID);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, textureID);
+
+	int width, height, nrComponents;
+	for (unsigned int i = 0; i < faces.size(); i++)
+	{
+		unsigned char* data = stbi_load(faces[i].c_str(), &width, &height, &nrComponents, 0);
+		if (data)
+		{
+			glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+			stbi_image_free(data);
+		}
+		else
+		{
+			std::cout << "Cubemap texture failed to load at path: " << faces[i] << std::endl;
+			stbi_image_free(data);
+		}
+	}
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+	return textureID;
+}
+
+void TrainView::
+drawSkybox()
+{
+	glDepthFunc(GL_LEQUAL);  // change depth function so depth test passes when values are equal to depth buffer's content
+	skyboxShader->Use();
+	glUniform1i(glGetUniformLocation(this->skyboxShader->Program, "skybox"), 0);
+	glm::mat4 view;
+	glm::mat4 projection;
+
+	glGetFloatv(GL_MODELVIEW_MATRIX, &view[0][0]);
+	glGetFloatv(GL_PROJECTION_MATRIX, &projection[0][0]);
+	view = glm::mat4(glm::mat3(view)); // remove translation from the view matrix
+
+	glGetFloatv(GL_PROJECTION_MATRIX, &projection[0][0]);
+	glUniformMatrix4fv(glGetUniformLocation(this->skyboxShader->Program, "view"), 1, GL_FALSE, &view[0][0]);
+	glUniformMatrix4fv(glGetUniformLocation(this->skyboxShader->Program, "projection"), 1, GL_FALSE, &projection[0][0]);
+
+	// skybox cube
+	glBindVertexArray(skyboxVAO);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
+	glDrawArrays(GL_TRIANGLES, 0, 36);
+	glBindVertexArray(0);
+	glDepthFunc(GL_LESS); // set depth function back to default
+}
+
+void TrainView::
+initTilesShader()
 {
 	if (!this->tilesShader)
 		this->tilesShader = new
@@ -691,4 +841,517 @@ drawTiles()
 
 	//unbind shader(switch to fixed pipeline)
 	glUseProgram(0);
+}
+
+
+
+void TrainView::
+initSineWater()
+{
+	if (!this->sineWaterShader)
+		this->sineWaterShader = new
+		Shader(
+			PROJECT_DIR "/src/shaders/sineVS.glsl",
+			nullptr, nullptr, nullptr,
+			PROJECT_DIR "/src/shaders/sineFS.glsl");
+
+	if (!this->sineWater) {
+
+		float size = 0.01f;
+		unsigned int width = 2.0f / size;
+		unsigned int height = 2.0f / size;
+
+		GLfloat* vertices = new GLfloat[width * height * 4 * 3]();
+		GLfloat* normal = new GLfloat[width * height * 4 * 3]();
+		GLfloat* texture_coordinate = new GLfloat[width * height * 4 * 2]();
+		GLuint* element = new GLuint[width * height * 6]();
+
+		for (int i = 0; i < width * height * 4 * 3; i += 12)
+		{
+			unsigned int h = i / 12 / width;
+			unsigned int w = i / 12 % width;
+
+			vertices[i] = w * size - 1.0f + size;
+			vertices[i + 1] = 0.6f;
+			vertices[i + 2] = h * size - 1.0f + size;
+
+			vertices[i + 3] = vertices[i] - size;
+			vertices[i + 4] = 0.6f;
+			vertices[i + 5] = vertices[i + 2];
+
+			vertices[i + 6] = vertices[i + 3];
+			vertices[i + 7] = 0.6f;
+			vertices[i + 8] = vertices[i + 5] - size;
+
+			vertices[i + 9] = vertices[i];
+			vertices[i + 10] = 0.6f;
+			vertices[i + 11] = vertices[i + 8];
+		}
+
+		for (int i = 0; i < width * height * 4 * 3; i += 3)
+		{
+			normal[i] = 0.0f;
+			normal[i + 1] = 1.0f;
+			normal[i + 2] = 0.0f;
+		}
+
+		for (int i = 0; i < width * height * 4 * 2; i += 8)
+		{
+			texture_coordinate[i] = 1.0f;
+			texture_coordinate[i + 1] = 1.0f;
+
+			texture_coordinate[i + 2] = 0.0f;
+			texture_coordinate[i + 3] = 1.0f;
+
+			texture_coordinate[i + 4] = 0.0f;
+			texture_coordinate[i + 5] = 0.0f;
+
+			texture_coordinate[i + 6] = 1.0f;
+			texture_coordinate[i + 7] = 0.0f;
+		}
+
+		for (int i = 0, j = 0; i < width * height * 6; i += 6, j += 4)
+		{
+			element[i] = j + 1;
+			element[i + 1] = j;
+			element[i + 2] = j + 3;
+
+			element[i + 3] = element[i + 2];
+			element[i + 4] = j + 2;
+			element[i + 5] = element[i];
+		}
+
+		this->sineWater = new VAO;
+		this->sineWater->element_amount = width * height * 6;
+		glGenVertexArrays(1, &this->sineWater->vao);
+		glGenBuffers(3, this->sineWater->vbo);
+		glGenBuffers(1, &this->sineWater->ebo);
+
+		glBindVertexArray(this->sineWater->vao);
+
+		// Position attribute
+		glBindBuffer(GL_ARRAY_BUFFER, this->sineWater->vbo[0]);
+		glBufferData(GL_ARRAY_BUFFER, width * height * 4 * 3 * sizeof(GLfloat), vertices, GL_STATIC_DRAW);
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (GLvoid*)0);
+		glEnableVertexAttribArray(0);
+
+		// Normal attribute
+		glBindBuffer(GL_ARRAY_BUFFER, this->sineWater->vbo[1]);
+		glBufferData(GL_ARRAY_BUFFER, width * height * 4 * 3 * sizeof(GLfloat), normal, GL_STATIC_DRAW);
+		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (GLvoid*)0);
+		glEnableVertexAttribArray(1);
+
+		// Texture Coordinate attribute
+		glBindBuffer(GL_ARRAY_BUFFER, this->sineWater->vbo[2]);
+		glBufferData(GL_ARRAY_BUFFER, width * height * 4 * 2 * sizeof(GLfloat), texture_coordinate, GL_STATIC_DRAW);
+		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(GLfloat), (GLvoid*)0);
+		glEnableVertexAttribArray(2);
+
+		//Element attribute
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, this->sineWater->ebo);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, width * height * 6 * sizeof(GLuint), element, GL_STATIC_DRAW);
+
+		// Unbind VAO
+		glBindVertexArray(0);
+	}
+}
+void TrainView::
+drawSineWater()
+{
+	glEnable(GL_BLEND);
+
+	this->sineWaterShader->Use();
+
+	glm::mat4 model_matrix = glm::mat4();
+	model_matrix = glm::translate(model_matrix, this->source_pos);
+	model_matrix = glm::scale(model_matrix, glm::vec3(100.0f, 100.0f, 100.0f));
+
+	glUniformMatrix4fv(
+		glGetUniformLocation(this->sineWaterShader->Program, "u_model"), 1, GL_FALSE, &model_matrix[0][0]);
+	glUniform3fv(
+		glGetUniformLocation(this->sineWaterShader->Program, "u_color"),
+		1,
+		&glm::vec3(0.0f, 1.0f, 0.0f)[0]);
+
+	glUniform1f(glGetUniformLocation(this->sineWaterShader->Program, ("amplitude")), 0.5f);
+	glUniform1f(glGetUniformLocation(this->sineWaterShader->Program, ("wavelength")), 0.5f);
+	glUniform1f(glGetUniformLocation(this->sineWaterShader->Program, ("speed")), 1.0f);
+	glUniform1f(glGetUniformLocation(this->sineWaterShader->Program, ("time")), t_time);
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
+	glUniform1i(glGetUniformLocation(this->sineWaterShader->Program, "skybox"), 0);
+
+	this->tilesTexture->bind(1);
+	glUniform1i(glGetUniformLocation(this->sineWaterShader->Program, "tiles"), 1);
+
+
+	this->moveFactor += this->WAVE_SPEED * t_time;
+	this->moveFactor /= 1.0f;
+	glUniform1f(glGetUniformLocation(this->sineWaterShader->Program, "moveFactor"), moveFactor);
+
+	GLfloat* view_matrix = new GLfloat[16];
+
+	glGetFloatv(GL_MODELVIEW_MATRIX, view_matrix);
+
+	view_matrix = inverse(view_matrix);
+
+	this->cameraPosition = glm::vec3(view_matrix[12], view_matrix[13], view_matrix[14]);
+	glUniform3fv(glGetUniformLocation(this->sineWaterShader->Program, "cameraPos"), 1, &glm::vec3(cameraPosition)[0]);
+
+	this->lightColor = glm::vec3(0.5f, 0.5f, 0.1f);
+	glUniform3fv(glGetUniformLocation(this->sineWaterShader->Program, "lightColor"), 1, &glm::vec3(lightColor)[0]);
+
+	this->lightPosition = glm::vec3(50.0f, 200.0f, 50.0f);
+	glUniform3fv(glGetUniformLocation(this->sineWaterShader->Program, "lightPosition"), 1, &glm::vec3(lightPosition)[0]);
+
+	//bind VAO
+	glBindVertexArray(this->sineWater->vao);
+
+	glDrawElements(GL_TRIANGLES, this->sineWater->element_amount, GL_UNSIGNED_INT, 0);
+
+	//unbind VAO
+	glBindVertexArray(0);
+
+	//unbind shader(switch to fixed pipeline)
+	glUseProgram(0);
+
+	glDisable(GL_BLEND);
+}
+void TrainView::
+initHeightWater()
+{
+	if (!this->heightWaterShader)
+		this->heightWaterShader = new
+		Shader(
+			PROJECT_DIR "/src/shaders/heightMapVS.glsl",
+			nullptr, nullptr, nullptr,
+			PROJECT_DIR "/src/shaders/heightMapFS.glsl");
+
+	if (!this->heightWater) {
+
+		float size = 0.01f;
+		unsigned int width = 2.0f / size;
+		unsigned int height = 2.0f / size;
+
+		GLfloat* vertices = new GLfloat[width * height * 4 * 3]();
+		GLfloat* normal = new GLfloat[width * height * 4 * 3]();
+		GLfloat* texture_coordinate = new GLfloat[width * height * 4 * 2]();
+		GLuint* element = new GLuint[width * height * 6]();
+
+		// vertices
+		for (int i = 0; i < width * height * 4 * 3; i += 12)
+		{
+			unsigned int h = i / 12 / width;
+			unsigned int w = i / 12 % width;
+
+			vertices[i] = w * size - 1.0f + size;
+			vertices[i + 1] = 0.6f;
+			vertices[i + 2] = h * size - 1.0f + size;
+
+			vertices[i + 3] = vertices[i] - size;
+			vertices[i + 4] = 0.6f;
+			vertices[i + 5] = vertices[i + 2];
+
+			vertices[i + 6] = vertices[i + 3];
+			vertices[i + 7] = 0.6f;
+			vertices[i + 8] = vertices[i + 5] - size;
+
+			vertices[i + 9] = vertices[i];
+			vertices[i + 10] = 0.6f;
+			vertices[i + 11] = vertices[i + 8];
+		}
+		
+		// normal 
+		for (int i = 0; i < width * height * 4 * 3; i += 3)
+		{
+			normal[i] = 0.0f;
+			normal[i + 1] = 1.0f;
+			normal[i + 2] = 0.0f;
+		}
+
+		// textrue
+		for (int i = 0; i < width * height * 4 * 2; i += 8)
+		{
+			texture_coordinate[i] = 1.0f;
+			texture_coordinate[i + 1] = 1.0f;
+
+			texture_coordinate[i + 2] = 0.0f;
+			texture_coordinate[i + 3] = 1.0f;
+
+			texture_coordinate[i + 4] = 0.0f;
+			texture_coordinate[i + 5] = 0.0f;
+
+			texture_coordinate[i + 6] = 1.0f;
+			texture_coordinate[i + 7] = 0.0f;
+		}
+
+		// element
+		for (int i = 0, j = 0; i < width * height * 6; i += 6, j += 4)
+		{
+			element[i] = j + 1;
+			element[i + 1] = j;
+			element[i + 2] = j + 3;
+
+			element[i + 3] = element[i + 2];
+			element[i + 4] = j + 2;
+			element[i + 5] = element[i];
+		}
+
+
+
+		this->heightWater = new VAO;
+		this->heightWater->element_amount = width * height * 6;
+		glGenVertexArrays(1, &this->heightWater->vao);
+		glGenBuffers(3, this->heightWater->vbo);
+		glGenBuffers(1, &this->heightWater->ebo);
+
+		glBindVertexArray(this->heightWater->vao);
+
+		glUseProgram(this->heightWaterShader->Program);
+		glUniform1f(
+			glGetUniformLocation(this->heightWaterShader->Program, "a_time"), sinWaterCounter);
+		
+		// Position attribute
+		glBindBuffer(GL_ARRAY_BUFFER, this->heightWater->vbo[0]);
+		glBufferData(GL_ARRAY_BUFFER, width * height * 4 * 3 * sizeof(GLfloat), vertices, GL_STATIC_DRAW);
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (GLvoid*)0);
+		glEnableVertexAttribArray(0);
+		
+		// Normal attribute
+		glBindBuffer(GL_ARRAY_BUFFER, this->heightWater->vbo[1]);
+		glBufferData(GL_ARRAY_BUFFER, width * height * 4 * 3 * sizeof(GLfloat), normal, GL_STATIC_DRAW);
+		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (GLvoid*)0);
+		glEnableVertexAttribArray(1);
+
+		// Texture Coordinate attribute
+		glBindBuffer(GL_ARRAY_BUFFER, this->heightWater->vbo[2]);
+		glBufferData(GL_ARRAY_BUFFER, width * height * 4 * 2 * sizeof(GLfloat), texture_coordinate, GL_STATIC_DRAW);
+		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(GLfloat), (GLvoid*)0);
+		glEnableVertexAttribArray(2);
+
+		//Element attribute
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, this->heightWater->ebo);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, width * height * 6 * sizeof(GLuint), element, GL_STATIC_DRAW);
+
+		// Unbind VAO
+		glBindVertexArray(0);
+
+	}
+
+	for (int i = 0; i < 200; ++i)
+	{
+		std::string name;
+		if (i < 10)
+			name = "00" + std::to_string(i);
+		else if (i < 100)
+			name = "0" + std::to_string(i);
+		else
+			name = std::to_string(i);
+
+		this->heightTexture.push_back(Texture2D(("Images/waves5/" + name + ".png").c_str()));
+	}
+}
+void TrainView::
+drawHeightWater()
+{
+	glEnable(GL_BLEND);
+	//bind shader
+	this->heightWaterShader->Use();
+
+	glm::mat4 model_matrix = glm::mat4();
+	model_matrix = glm::translate(model_matrix, this->source_pos);
+	model_matrix = glm::scale(model_matrix, glm::vec3(100.0f, 100.0f, 100.0f));
+
+	glUniformMatrix4fv(
+		glGetUniformLocation(this->heightWaterShader->Program, "u_model"),
+		1, GL_FALSE, &model_matrix[0][0]);
+	glUniform3fv(
+		glGetUniformLocation(this->heightWaterShader->Program, "u_color"),
+		1, &glm::vec3(0.0f, 1.0f, 0.0f)[0]);
+
+	heightTexture[heightMapIndex].bind(0);
+	glUniform1i(glGetUniformLocation(this->heightWaterShader->Program, "u_texture"), 0);
+	this->tilesTexture->bind(1);
+	glUniform1i(glGetUniformLocation(this->heightWaterShader->Program, "tiles"), 1);
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, this->cubemapTexture);
+	glUniform1i(glGetUniformLocation(this->heightWaterShader->Program, "skyBox"), 0);
+	//// ffff
+	//glUniform1f(glGetUniformLocation(this->heightWaterShader->Program, "amplitude"), tw->amplitude->value());
+	//glUniform1f(glGetUniformLocation(this->heightWaterShader->Program, "wavelength"), tw->waveLength->value());
+
+	//glUniform1f(glGetUniformLocation(this->heightWaterShader->Program, "time"), t_time);
+
+	GLfloat* view_matrix = new GLfloat[16];
+	glGetFloatv(GL_MODELVIEW_MATRIX, view_matrix);
+	view_matrix = inverse(view_matrix);
+
+	this->cameraPosition = glm::vec3(view_matrix[12], view_matrix[13], view_matrix[14]);
+	glUniform3fv(glGetUniformLocation(this->heightWaterShader->Program, "camera"), 1, &cameraPosition[0]);
+
+	//bind VAO
+	glBindVertexArray(this->heightWater->vao);
+
+	glDrawElements(GL_TRIANGLES, this->heightWater->element_amount, GL_UNSIGNED_INT, 0);
+
+	//draw drops
+	for (int i = 0; i < allDrop.size(); ++i)
+	{
+		if (t_time - allDrop[i].time > allDrop[i].keepTime)
+		{
+			allDrop.erase(allDrop.begin() + i);
+			--i;
+			continue;
+		}
+
+		glUniform2f(glGetUniformLocation(this->heightWaterShader->Program, "dropPoint"), allDrop[i].point.x, allDrop[i].point.y);
+		glUniform1f(glGetUniformLocation(this->heightWaterShader->Program, "dropTime"), allDrop[i].time);
+		glUniform1f(glGetUniformLocation(this->heightWaterShader->Program, "interactiveRadius"), allDrop[i].radius);
+
+		glDrawElements(GL_TRIANGLES, this->heightWater->element_amount, GL_UNSIGNED_INT, 0);
+	}
+
+	//unbind VAO
+	glBindVertexArray(0);
+
+	//unbind shader(switch to fixed pipeline)
+	glUseProgram(0);
+
+	glDisable(GL_BLEND);
+
+}
+
+GLfloat* TrainView::
+inverse(GLfloat* m)
+{
+	GLfloat* inv = new GLfloat[16]();
+	float det;
+
+	int i;
+
+	inv[0] = m[5] * m[10] * m[15] -
+		m[5] * m[11] * m[14] -
+		m[9] * m[6] * m[15] +
+		m[9] * m[7] * m[14] +
+		m[13] * m[6] * m[11] -
+		m[13] * m[7] * m[10];
+
+	inv[4] = -m[4] * m[10] * m[15] +
+		m[4] * m[11] * m[14] +
+		m[8] * m[6] * m[15] -
+		m[8] * m[7] * m[14] -
+		m[12] * m[6] * m[11] +
+		m[12] * m[7] * m[10];
+
+	inv[8] = m[4] * m[9] * m[15] -
+		m[4] * m[11] * m[13] -
+		m[8] * m[5] * m[15] +
+		m[8] * m[7] * m[13] +
+		m[12] * m[5] * m[11] -
+		m[12] * m[7] * m[9];
+
+	inv[12] = -m[4] * m[9] * m[14] +
+		m[4] * m[10] * m[13] +
+		m[8] * m[5] * m[14] -
+		m[8] * m[6] * m[13] -
+		m[12] * m[5] * m[10] +
+		m[12] * m[6] * m[9];
+
+	inv[1] = -m[1] * m[10] * m[15] +
+		m[1] * m[11] * m[14] +
+		m[9] * m[2] * m[15] -
+		m[9] * m[3] * m[14] -
+		m[13] * m[2] * m[11] +
+		m[13] * m[3] * m[10];
+
+	inv[5] = m[0] * m[10] * m[15] -
+		m[0] * m[11] * m[14] -
+		m[8] * m[2] * m[15] +
+		m[8] * m[3] * m[14] +
+		m[12] * m[2] * m[11] -
+		m[12] * m[3] * m[10];
+
+	inv[9] = -m[0] * m[9] * m[15] +
+		m[0] * m[11] * m[13] +
+		m[8] * m[1] * m[15] -
+		m[8] * m[3] * m[13] -
+		m[12] * m[1] * m[11] +
+		m[12] * m[3] * m[9];
+
+	inv[13] = m[0] * m[9] * m[14] -
+		m[0] * m[10] * m[13] -
+		m[8] * m[1] * m[14] +
+		m[8] * m[2] * m[13] +
+		m[12] * m[1] * m[10] -
+		m[12] * m[2] * m[9];
+
+	inv[2] = m[1] * m[6] * m[15] -
+		m[1] * m[7] * m[14] -
+		m[5] * m[2] * m[15] +
+		m[5] * m[3] * m[14] +
+		m[13] * m[2] * m[7] -
+		m[13] * m[3] * m[6];
+
+	inv[6] = -m[0] * m[6] * m[15] +
+		m[0] * m[7] * m[14] +
+		m[4] * m[2] * m[15] -
+		m[4] * m[3] * m[14] -
+		m[12] * m[2] * m[7] +
+		m[12] * m[3] * m[6];
+
+	inv[10] = m[0] * m[5] * m[15] -
+		m[0] * m[7] * m[13] -
+		m[4] * m[1] * m[15] +
+		m[4] * m[3] * m[13] +
+		m[12] * m[1] * m[7] -
+		m[12] * m[3] * m[5];
+
+	inv[14] = -m[0] * m[5] * m[14] +
+		m[0] * m[6] * m[13] +
+		m[4] * m[1] * m[14] -
+		m[4] * m[2] * m[13] -
+		m[12] * m[1] * m[6] +
+		m[12] * m[2] * m[5];
+
+	inv[3] = -m[1] * m[6] * m[11] +
+		m[1] * m[7] * m[10] +
+		m[5] * m[2] * m[11] -
+		m[5] * m[3] * m[10] -
+		m[9] * m[2] * m[7] +
+		m[9] * m[3] * m[6];
+
+	inv[7] = m[0] * m[6] * m[11] -
+		m[0] * m[7] * m[10] -
+		m[4] * m[2] * m[11] +
+		m[4] * m[3] * m[10] +
+		m[8] * m[2] * m[7] -
+		m[8] * m[3] * m[6];
+
+	inv[11] = -m[0] * m[5] * m[11] +
+		m[0] * m[7] * m[9] +
+		m[4] * m[1] * m[11] -
+		m[4] * m[3] * m[9] -
+		m[8] * m[1] * m[7] +
+		m[8] * m[3] * m[5];
+
+	inv[15] = m[0] * m[5] * m[10] -
+		m[0] * m[6] * m[9] -
+		m[4] * m[1] * m[10] +
+		m[4] * m[2] * m[9] +
+		m[8] * m[1] * m[6] -
+		m[8] * m[2] * m[5];
+
+	det = m[0] * inv[0] + m[1] * inv[4] + m[2] * inv[8] + m[3] * inv[12];
+
+	if (det == 0)
+		return false;
+
+	det = 1.0 / det;
+
+	for (i = 0; i < 16; i++)
+		inv[i] = inv[i] * det;
+
+	return inv;
 }

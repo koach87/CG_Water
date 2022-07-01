@@ -142,6 +142,17 @@ TrainWindow(const int x, const int y)
 
 		pty+=30;
 
+		// add option to select mode
+		waveBrowser = new Fl_Browser(605, pty, 120, 75, "Wave Type");
+		waveBrowser->type(2);		// select
+		waveBrowser->callback((Fl_Callback*)damageCB, this);
+		waveBrowser->add("Sine wave");
+		waveBrowser->add("Heightmap");
+		waveBrowser->select(1);
+
+		pty += 110;
+
+
 		// TODO: add widgets for all of your fancier features here
 #ifdef EXAMPLE_SOLUTION
 		makeExampleWidgets(this,pty);
@@ -195,6 +206,10 @@ void TrainWindow::
 advanceTrain(float dir)
 //========================================================================
 {
+
+
+
+
 	//#####################################################################
 	// TODO: make this work for your train
 	//#####################################################################

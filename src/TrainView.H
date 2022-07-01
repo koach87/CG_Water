@@ -59,6 +59,19 @@ class CTrack;
 // this uses the old ArcBall Code
 #include "Utilities/ArcBallCam.H"
 
+struct Drop
+{
+	Drop(glm::vec2 p, float t, float r, float k)
+		:point(p), time(t), radius(r), keepTime(k)
+	{
+	}
+
+	glm::vec2 point;
+	float time;
+	float radius;
+	float keepTime;
+};
+
 class TrainView : public Fl_Gl_Window
 {
 	public:
@@ -87,9 +100,26 @@ class TrainView : public Fl_Gl_Window
 		// set ubo
 		void setUBO();
 		
+		// skybox
+		void initSkyboxShader();
+		void drawSkybox();
+		// cubeMap
+		unsigned int loadCubemap(std::vector<std::string> faces);
+
 		// tiles
-		void initTileShader();
+		void initTilesShader();
 		void drawTiles();
+
+		// sineWater
+		void initSineWater();
+		void drawSineWater();
+
+		// heightMap
+		void initHeightWater();
+		void drawHeightWater();
+
+		// inverse
+		GLfloat* inverse(GLfloat*);
 
 	public:
 		ArcBallCam		arcball;			// keep an ArcBall for the UI
@@ -103,11 +133,35 @@ class TrainView : public Fl_Gl_Window
 		VAO* plane			= nullptr;
 		UBO* commom_matrices= nullptr;
 
+		// cubemap & skybox
+		unsigned int cubemapTexture;
+		Shader* skyboxShader = nullptr;
+		Texture2D* skyBoxTexture = nullptr;
+		unsigned int skyboxVAO;
+		unsigned int skyboxVBO;
+
 		// tiles
 		Shader* tilesShader = nullptr;
 		VAO* tiles = nullptr;
 		Texture2D* tilesTexture = nullptr;
 
+		// sineWater
+		Shader* sineWaterShader = nullptr;
+		VAO* sineWater = nullptr;
+		float sinWaterCounter = 0;
+		float moveFactor = 0.0f;
+		float WAVE_SPEED = 0.03f;
+		float t_time = 0.0f;
+		glm::vec3 cameraPosition;
+		glm::vec3 lightColor;
+		glm::vec3 lightPosition;
+
+		// heightWater
+		Shader* heightWaterShader = nullptr;
+		VAO* heightWater = nullptr;
+		std::vector<Texture2D> heightTexture;
+		int heightMapIndex = 0;
+		
 
 		//OpenAL
 		glm::vec3 source_pos;
@@ -117,5 +171,6 @@ class TrainView : public Fl_Gl_Window
 		ALuint source;
 		ALuint buffer;
 
+		std::vector<Drop> allDrop;
 
 };
