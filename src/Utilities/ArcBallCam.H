@@ -155,6 +155,7 @@ class ArcBallCam {
 		// this updates the cached positions - call it when the mouse is dragged
 		void computeNow(const float nowX, const float nowY);
 
+		void computeNowRotate(float, float, float, float, float, float, Quat&);
 		// this gets the global matrix (start and now)
 		void getMatrix(HMatrix) const;
 
@@ -172,11 +173,26 @@ class ArcBallCam {
 		// assume the window does it
 		void getMouseNDC(float& x, float& y);
 
-	private:
+
+	// from private
+	public:
+		
+
+		//from private
+		float				eyeX;		// in eyeX, eyeY, but this is the displacement for undoing the last
+		float				eyeY;		// addition
+		float				eyeZ;
+
 		// This keeps track of the rotation - the current rotation is
 		// start*now
 		Quat				start;	// orientation at the start of drag
 		Quat				now;		// quaternion "now" (while dragging)
+		Quat				regNowFlection;
+		Quat				regNowNormal;
+
+		float				isx;		// save a preferred rotation to return to
+		float				isy;
+		float				isz;
 
 		float				downX;	// where the mouse went down
 		float				downY;	
@@ -193,18 +209,19 @@ class ArcBallCam {
 		float				panX;		// this keeps track of the panning - the current pan is 
 		float				panY;		
 
-		float				eyeX;		// in eyeX, eyeY, but this is the displacement for undoing the last
-		float				eyeY;		// addition
-		float				eyeZ;
 
 		float				initEyeZ;
 		float				fieldOfView; // View of field
 
 
+		float dx, dy, dz;
+		float mx, my, mz;
+
+		float reflectDx, reflectDy, reflectDz;
+		float reflectMx, reflectMy, reflectMz;
 		
-		float				isx;		// save a preferred rotation to return to
-		float				isy;
-		float				isz;
+		bool reflect=false;
+		bool drag=false;
 
 		Fl_Gl_Window	*wind;	// Draw window
 };

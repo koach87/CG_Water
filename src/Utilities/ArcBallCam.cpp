@@ -65,7 +65,7 @@
 #include <GL/glu.h>
 #include <Fl/Fl_Double_Window.h>
 #pragma warning(pop)
-
+#include<iostream>
 #include "stdio.h"
 
 //**************************************************************************
@@ -94,6 +94,7 @@ setup(Fl_Gl_Window* _wind, float _fieldOfView, float _eyeZ,
 	   float _isx, float _isy, float _isz)
 //==========================================================================
 {
+	//std::cout << "setup" << "\n";
 	// set up the basic information
 	wind			= _wind;
 	fieldOfView = _fieldOfView;
@@ -119,6 +120,7 @@ void ArcBallCam::
 setProjection(bool doClear)
 //==========================================================================
 {
+  //std::cout << "setProjection" << "\n";
   glMatrixMode(GL_PROJECTION);
   if (doClear)
 	  glLoadIdentity();
@@ -130,7 +132,6 @@ setProjection(bool doClear)
   // Put the camera where we want it to be
   glMatrixMode(GL_MODELVIEW);
   glLoadIdentity();
-
   // Use the transformation in the ArcBall
   glTranslatef(-eyeX, -eyeY, -eyeZ);
   multMatrix();
@@ -144,6 +145,7 @@ int ArcBallCam::
 handle(int e)
 //==========================================================================
 {
+	////std::cout << "handle" << "\n";
 	switch(e) {
 		case FL_PUSH:
 			mode = None;
@@ -174,6 +176,8 @@ handle(int e)
 
 		case FL_RELEASE:
 			if (mode != None) {
+
+				std::cout << "CCCCCCCCCCCCCCC\n";
 				wind->damage(1);
 				mode = None;
 				return 1;
@@ -182,6 +186,8 @@ handle(int e)
 
 		case FL_DRAG: // if the user drags the mouse
 			if(mode != None) { // we're taking the drags
+				drag = true;
+				std::cout << "BBBBBBBBBBBBBBB\n";
 				float x,y;
 				getMouseNDC(x,y);
 				computeNow(x,y);
@@ -209,6 +215,8 @@ void ArcBallCam::
 getMouseNDC(float& x, float& y)
 //==========================================================================
 {
+
+	//std::cout << "getMouseNDC" << "\n";
 	// notice, we put everything into doubles so we can do the math
 	float mx = (float) Fl::event_x();	// remeber where the mouse went down
 	float my = (float) Fl::event_y();
@@ -233,6 +241,8 @@ void ArcBallCam::
 down(const float x, const float y)
 //==========================================================================
 {
+
+	//std::cout << "down" << "\n";
 	start = now * start;
 	now = Quat();		// identity
 
@@ -251,6 +261,8 @@ void ArcBallCam::
 getMatrix(HMatrix m) const
 //==========================================================================
 {
+
+	//std::cout << "getMatrix" << "\n";
 	Quat qAll = now * start;
 	qAll = qAll.conjugate();   // since Ken does everything transposed
 	qAll.toMatrix(m);
@@ -264,6 +276,8 @@ void ArcBallCam::
 multMatrix()
 //==========================================================================
 {
+
+	//std::cout << "multMatrix" << "\n";
 	HMatrix m;
 	getMatrix(m);
 	glMultMatrixf((float*) m);
@@ -277,6 +291,7 @@ void ArcBallCam::
 reset()
 //==========================================================================
 {
+	//std::cout << "reset" << "\n";
 	start.x = 0;
 	start.y = 0;
 	start.z = 0;
@@ -293,6 +308,7 @@ void ArcBallCam::
 spin(float x, float y, float z)
 //==========================================================================
 {
+	//std::cout << "spin" << "\n";
 	// printf("\nstart was %g %g %g %g\n",start.x,start.y,start.z,start.w);
 	// first, get rid of anything cached
 	start = now * start;
@@ -322,6 +338,7 @@ static void onUnitSphere(const float mx, const float my,
 								float& x, float& y, float& z)
 //==========================================================================
 {
+	//std::cout << "onUnitSphere" << "\n";
 	x = mx;		// should divide radius
 	y = my;
 	float mag = x*x + y*y;
@@ -343,29 +360,49 @@ void ArcBallCam::
 computeNow(const float nowX, const float nowY)
 //==========================================================================
 {
+	//std::cout << "computeNow" << "\n";
+	
 	if (mode==Rotate) {
-		float dx,dy,dz;
-		float mx,my,mz;
+
+		onUnitSphere(downX, nowY, reflectDx, reflectDy, reflectDz);
+		onUnitSphere(nowX, downY, reflectMx, reflectMy, reflectMz);
+		computeNowRotate(reflectDx, reflectDy, reflectDz, reflectMx, reflectMy, reflectMz, regNowFlection);
+
 		onUnitSphere(downX, downY, dx, dy, dz);
 		onUnitSphere(nowX, nowY, mx, my, mz);
+		computeNowRotate(dx, dy, dz, mx, my, mz, regNowNormal);
 
-		// here we compute the quaternion between these two points
-		now.x = dy*mz - dz*my;
-		now.y = dz*mx - dx*mz;
-		now.z = dx*my - dy*mx;
-		now.w = dx*mx + dy*my + dz*mz;
+		//now.x = regNowFlection.x;
+		//now.y = regNowFlection.y;
+		//now.z = regNowFlection.z;
+		//now.w = regNowFlection.w;
 
 		now.renorm();		// just in case...
 	}
 	else if (mode==Pan) {
-		float dx = (nowX-downX) * eyeZ;
-		float dy = (nowY-downY) * eyeZ;
+		float dx_ = (nowX-downX) * eyeZ;
+		float dy_ = (nowY-downY) * eyeZ;
 
-		eyeX += panX - dx;
-		eyeY += panY - dy;
-		panX = dx;
-		panY = dy;
+		eyeX += panX - dx_;
+		eyeY += panY - dy_;
+		panX = dx_;
+		panY = dy_;
 	}
+}
+void ArcBallCam::
+computeNowRotate(float Dx, float Dy, float Dz, float Mx, float My, float Mz, Quat& reg)
+{
+	//std::cout << "computeNowRotate" << "\n";
+	// here we compute the quaternion between these two points
+	reg.x = Dy * Mz - Dz * My;
+	reg.y = Dz * Mx - Dx * Mz;
+	reg.z = Dx * My - Dy * Mx;
+	reg.w = Dx * Mx + Dy * My + Dz * Mz;
+
+	//now.x = Dy * Mz - Dz * My;
+	//now.y = Dz * Mx - Dx * Mz;
+	//now.z = Dx * My - Dy * Mx;
+	//now.w = Dx * Mx + Dy * My + Dz * Mz;
 }
 
 //*****************************************************************************

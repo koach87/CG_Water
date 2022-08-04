@@ -1,29 +1,30 @@
 /************************************************************************
-     File:        TrainView.cpp
+	 File:        TrainView.cpp
 
-     Author:     
-                  Michael Gleicher, gleicher@cs.wisc.edu
+	 Author:
+				  Michael Gleicher, gleicher@cs.wisc.edu
 
-     Modifier
-                  Yu-Chi Lai, yu-chi@cs.wisc.edu
-     
-     Comment:     
-						The TrainView is the window that actually shows the 
+	 Modifier
+				  Yu-Chi Lai, yu-chi@cs.wisc.edu
+
+	 Comment:
+						The TrainView is the window that actually shows the
 						train. Its a
-						GL display canvas (Fl_Gl_Window).  It is held within 
+						GL display canvas (Fl_Gl_Window).  It is held within
 						a TrainWindow
-						that is the outer window with all the widgets. 
-						The TrainView needs 
-						to be aware of the window - since it might need to 
+						that is the outer window with all the widgets.
+						The TrainView needs
+						to be aware of the window - since it might need to
 						check the widgets to see how to draw
 
-	  Note:        we need to have pointers to this, but maybe not know 
+	  Note:        we need to have pointers to this, but maybe not know
 						about it (beware circular references)
 
-     Platform:    Visio Studio.Net 2003/2005
+	 Platform:    Visio Studio.Net 2003/2005
 
 *************************************************************************/
 
+// TODO: move camera position and mix it.
 #include <iostream>
 #include <Fl/fl.h>
 
@@ -42,6 +43,8 @@
 #ifdef EXAMPLE_SOLUTION
 #	include "TrainExample/TrainExample.H"
 #endif
+
+
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
@@ -50,11 +53,11 @@
 // * Constructor to set up the GL window
 //========================================================================
 TrainView::
-TrainView(int x, int y, int w, int h, const char* l) 
-	: Fl_Gl_Window(x,y,w,h,l)
-//========================================================================
+TrainView(int x, int y, int w, int h, const char* l)
+	: Fl_Gl_Window(x, y, w, h, l)
+	//========================================================================
 {
-	mode( FL_RGB|FL_ALPHA|FL_DOUBLE | FL_STENCIL );
+	mode(FL_RGB | FL_ALPHA | FL_DOUBLE | FL_STENCIL);
 
 	resetArcball();
 }
@@ -71,6 +74,7 @@ resetArcball()
 	// these parameters might seem magical, and they kindof are
 	// a little trial and error goes a long way
 	arcball.setup(this, 40, 250, .2f, .4f, 0);
+	//reflectArcball.setup(this, 40, 250, .2f, .4f, 0);
 }
 
 //************************************************************************
@@ -86,86 +90,92 @@ int TrainView::handle(int event)
 {
 	// see if the ArcBall will handle the event - if it does, 
 	// then we're done
-	// note: the arcball only gets the event if we're in world view
+	// note: the arcball only gets the event if we're in world view;
 	if (tw->worldCam->value())
-		if (arcball.handle(event)) 
+	{
+		if (arcball.handle(event))
+		{
 			return 1;
+		}
+
+	}
+		
 
 	// remember what button was used
 	static int last_push;
 
-	switch(event) {
+	switch (event) {
 		// Mouse button being pushed event
-		case FL_PUSH:
-			last_push = Fl::event_button();
-			// if the left button be pushed is left mouse button
-			if (last_push == FL_LEFT_MOUSE  ) {
-				doPick();
-				damage(1);
-				return 1;
-			};
-			break;
-
-	   // Mouse button release event
-		case FL_RELEASE: // button release
+	case FL_PUSH:
+		last_push = Fl::event_button();
+		// if the left button be pushed is left mouse button
+		if (last_push == FL_LEFT_MOUSE) {
+			doPick();
 			damage(1);
-			last_push = 0;
 			return 1;
+		};
+		break;
+
+		// Mouse button release event
+	case FL_RELEASE: // button release
+		damage(1);
+		last_push = 0;
+		return 1;
 
 		// Mouse button drag event
-		case FL_DRAG:
+	case FL_DRAG:
 
-			// Compute the new control point position
-			if ((last_push == FL_LEFT_MOUSE) && (selectedCube >= 0)) {
-				ControlPoint* cp = &m_pTrack->points[selectedCube];
+		// Compute the new control point position
+		if ((last_push == FL_LEFT_MOUSE) && (selectedCube >= 0)) {
+			ControlPoint* cp = &m_pTrack->points[selectedCube];
 
-				double r1x, r1y, r1z, r2x, r2y, r2z;
-				getMouseLine(r1x, r1y, r1z, r2x, r2y, r2z);
+			double r1x, r1y, r1z, r2x, r2y, r2z;
+			getMouseLine(r1x, r1y, r1z, r2x, r2y, r2z);
 
-				double rx, ry, rz;
-				mousePoleGo(r1x, r1y, r1z, r2x, r2y, r2z, 
-								static_cast<double>(cp->pos.x), 
-								static_cast<double>(cp->pos.y),
-								static_cast<double>(cp->pos.z),
-								rx, ry, rz,
-								(Fl::event_state() & FL_CTRL) != 0);
+			double rx, ry, rz;
+			mousePoleGo(r1x, r1y, r1z, r2x, r2y, r2z,
+				static_cast<double>(cp->pos.x),
+				static_cast<double>(cp->pos.y),
+				static_cast<double>(cp->pos.z),
+				rx, ry, rz,
+				(Fl::event_state() & FL_CTRL) != 0);
 
-				cp->pos.x = (float) rx;
-				cp->pos.y = (float) ry;
-				cp->pos.z = (float) rz;
-				damage(1);
-			}
-			break;
+			cp->pos.x = (float)rx;
+			cp->pos.y = (float)ry;
+			cp->pos.z = (float)rz;
+			damage(1);
+		}
+		break;
 
 		// in order to get keyboard events, we need to accept focus
-		case FL_FOCUS:
-			return 1;
+	case FL_FOCUS:
+		return 1;
 
 		// every time the mouse enters this window, aggressively take focus
-		case FL_ENTER:	
-			focus(this);
-			break;
+	case FL_ENTER:
+		focus(this);
+		break;
 
-		case FL_KEYBOARD:
-		 		int k = Fl::event_key();
-				int ks = Fl::event_state();
-				if (k == 'p') {
-					// Print out the selected control point information
-					if (selectedCube >= 0) 
-						printf("Selected(%d) (%g %g %g) (%g %g %g)\n",
-								 selectedCube,
-								 m_pTrack->points[selectedCube].pos.x,
-								 m_pTrack->points[selectedCube].pos.y,
-								 m_pTrack->points[selectedCube].pos.z,
-								 m_pTrack->points[selectedCube].orient.x,
-								 m_pTrack->points[selectedCube].orient.y,
-								 m_pTrack->points[selectedCube].orient.z);
-					else
-						printf("Nothing Selected\n");
+	case FL_KEYBOARD:
+		int k = Fl::event_key();
+		int ks = Fl::event_state();
+		if (k == 'p') {
+			// Print out the selected control point information
+			if (selectedCube >= 0)
+				printf("Selected(%d) (%g %g %g) (%g %g %g)\n",
+					selectedCube,
+					m_pTrack->points[selectedCube].pos.x,
+					m_pTrack->points[selectedCube].pos.y,
+					m_pTrack->points[selectedCube].pos.z,
+					m_pTrack->points[selectedCube].orient.x,
+					m_pTrack->points[selectedCube].orient.y,
+					m_pTrack->points[selectedCube].orient.z);
+			else
+				printf("Nothing Selected\n");
 
-					return 1;
-				};
-				break;
+			return 1;
+		};
+		break;
 	}
 
 	return Fl_Gl_Window::handle(event);
@@ -178,7 +188,7 @@ int TrainView::handle(int event)
 //========================================================================
 void TrainView::draw()
 {
-	t_time+=1.0f;
+	t_time += 0.01f;
 	//*********************************************************************
 	//
 	// * Set up basic opengl informaiton
@@ -192,7 +202,11 @@ void TrainView::draw()
 		initSineWater();
 		initHeightWater();
 		initSkyboxShader();
+		initMonitor();
+		if (!this->fbos)
+			this->fbos = new WaterFrameBuffers();
 
+		// for處理座標
 		if (!this->commom_matrices)
 			this->commom_matrices = new UBO();
 		this->commom_matrices->size = 2 * sizeof(glm::mat4);
@@ -200,17 +214,18 @@ void TrainView::draw()
 		glBindBuffer(GL_UNIFORM_BUFFER, this->commom_matrices->ubo);
 		glBufferData(GL_UNIFORM_BUFFER, this->commom_matrices->size, NULL, GL_STATIC_DRAW);
 		glBindBuffer(GL_UNIFORM_BUFFER, 0);
-		
-		
+
+
 	}
 	else
 		throw std::runtime_error("Could not initialize GLAD!");
 
+
 	// Set up the view port
-	glViewport(0,0,w(),h());
+	glViewport(0, 0, w(), h());
 
 	// clear the window, be sure to clear the Z-Buffer too
-	glClearColor(0,0,.3f,0);		// background should be blue
+	glClearColor(0, 0, .3f, 0);		// background should be blue
 
 	// we need to clear out the stencil buffer since we'll use
 	// it for shadows
@@ -219,13 +234,12 @@ void TrainView::draw()
 	glEnable(GL_DEPTH);
 
 	// Blayne prefers GL_DIFFUSE
-    glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
 
 	// prepare for projection
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
 	setProjection();		// put the code to set up matrices here
-
 	//######################################################################
 	// TODO: 
 	// you might want to set the lighting up differently. if you do, 
@@ -241,7 +255,8 @@ void TrainView::draw()
 	if (tw->topCam->value()) {
 		glDisable(GL_LIGHT1);
 		glDisable(GL_LIGHT2);
-	} else {
+	}
+	else {
 		glEnable(GL_LIGHT1);
 		glEnable(GL_LIGHT2);
 	}
@@ -251,13 +266,13 @@ void TrainView::draw()
 	// * set the light parameters
 	//
 	//**********************************************************************
-	GLfloat lightPosition1[]	= {0,1,1,0}; // {50, 200.0, 50, 1.0};
-	GLfloat lightPosition2[]	= {1, 0, 0, 0};
-	GLfloat lightPosition3[]	= {0, -1, 0, 0};
-	GLfloat yellowLight[]		= {0.5f, 0.5f, .1f, 1.0};
-	GLfloat whiteLight[]			= {1.0f, 1.0f, 1.0f, 1.0};
-	GLfloat blueLight[]			= {.1f,.1f,.3f,1.0};
-	GLfloat grayLight[]			= {.3f, .3f, .3f, 1.0};
+	GLfloat lightPosition1[] = { 0,1,1,0 }; // {50, 200.0, 50, 1.0};
+	GLfloat lightPosition2[] = { 1, 0, 0, 0 };
+	GLfloat lightPosition3[] = { 0, -1, 0, 0 };
+	GLfloat yellowLight[] = { 0.5f, 0.5f, .1f, 1.0 };
+	GLfloat whiteLight[] = { 1.0f, 1.0f, 1.0f, 1.0 };
+	GLfloat blueLight[] = { .1f,.1f,.3f,1.0 };
+	GLfloat grayLight[] = { .3f, .3f, .3f, 1.0 };
 
 	glLightfv(GL_LIGHT0, GL_POSITION, lightPosition1);
 	glLightfv(GL_LIGHT0, GL_DIFFUSE, whiteLight);
@@ -270,14 +285,14 @@ void TrainView::draw()
 	glLightfv(GL_LIGHT2, GL_DIFFUSE, blueLight);
 
 	// set linstener position 
-	if(selectedCube >= 0)
-		alListener3f(AL_POSITION, 
+	if (selectedCube >= 0)
+		alListener3f(AL_POSITION,
 			m_pTrack->points[selectedCube].pos.x,
 			m_pTrack->points[selectedCube].pos.y,
 			m_pTrack->points[selectedCube].pos.z);
 	else
-		alListener3f(AL_POSITION, 
-			this->source_pos.x, 
+		alListener3f(AL_POSITION,
+			this->source_pos.x,
 			this->source_pos.y,
 			this->source_pos.z);
 
@@ -288,8 +303,8 @@ void TrainView::draw()
 	// set to opengl fixed pipeline(use opengl 1.x draw function)
 	glUseProgram(0);
 
-	setupFloor();
-	glDisable(GL_LIGHTING);
+	//setupFloor();
+	//glDisable(GL_LIGHTING);
 
 	// delete by koach
 	//drawFloor(200,10);
@@ -304,7 +319,7 @@ void TrainView::draw()
 
 	setupObjects();
 
-	drawStuff();
+	// drawStuff();
 
 	// this time drawing is for shadows (except for top view)
 	if (!tw->topCam->value()) {
@@ -317,16 +332,153 @@ void TrainView::draw()
 	glBindBufferRange(
 		GL_UNIFORM_BUFFER, /*binding point*/0, this->commom_matrices->ubo, 0, this->commom_matrices->size);
 
-	drawTiles();
+
+	//// calculate view matrixglm::mat4 view_matrix;
+	glm::mat4 view_matrix, view_matrix_rotation, view_matrix_translation(1.0f), new_view_matrix;
+	glGetFloatv(GL_MODELVIEW_MATRIX, &view_matrix[0][0]);
+
+	// view_matrix_rotation = glm::rotate(view_matrix, glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f)); 
+	glm::mat4 view_matrix_inv = glm::inverse(view_matrix);
+	// this->cameraPosition = glm::vec3(view_matrix_inv[3][0], view_matrix_inv[3][1], view_matrix_inv[3][2]);
+	view_matrix_rotation[3][0] = view_matrix_rotation[3][1] = view_matrix_rotation[3][2] = 0.0f;
+	view_matrix_translation[3] = glm::vec4(view_matrix_inv[3][0], view_matrix_inv[3][1], view_matrix_inv[3][2], 1.0f);
+	new_view_matrix = view_matrix_rotation * view_matrix_translation;
+	////view_matrix = inverse(view_matrix);
+	////view_matrix_neg = inverse(view_matrix_neg);
+	/*for (int i = 0; i < 16; i++)
+	{
+		view_matrix_neg[i] = view_matrix_neg[i];
+	}*/
+	//// x, y, z
+	//this->cameraPosition = glm::vec3(view_matrix[12], view_matrix[13], view_matrix[14]);
+	////view_matrix_neg[12] = -view_matrix_neg[12];
+	////view_matrix_neg[13] = -view_matrix_neg[13];
+	////view_matrix_neg[14] = -view_matrix_neg[14];
+
+	
+	//for (int i = 0; i < 16; i++)
+	//{
+	//	std::cout << view_matrix[i] << "\t";
+	//}
+	//std::cout << "\n";
+	//std::cout << cameraPosition.x << "\t" << cameraPosition.y << "\t" << cameraPosition.z << "\n";
+
+	//// calculate projection matrix
+	//GLfloat* proj_matrix = new GLfloat[16];
+	//glGetFloatv(GL_PROJECTION_MATRIX, proj_matrix);
+	//proj_matrix = inverse(proj_matrix);
+	//// x, y, z
+	//for (int i = 0; i < 16; i++)
+	//{
+	//	std::cout << proj_matrix[i] << "\t";
+	//}
+	//std::cout << "\n";
+	//
+
+	glEnable(GL_CLIP_DISTANCE0);
+	/*
+	// renderScene - mode
+		0: Don't clip
+		1: Clip for reflection
+		2: Clip for refraction
+	*/
+	// for reflection 
+	//arcball.eyeY -= distance;
+
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
+	glMultMatrixf(&view_matrix_rotation[0][0]);
+	//glRotatef(90.0f, 0, 1, 0)/*;*/
+
+	//reflect = true;
+	// 
+	//float x, y;
+	//arcball.getMouseNDC(x, y);
+	//arcball.computeNow(x, y, reflect);
+	//arcball.wind->damage(1);
+	//arcball.computeNowRotate(arcball.reflectDx, arcball.reflectDy, arcball.reflectDz, arcball.reflectMx, arcball.reflectMy, arcball.reflectMz);
+
+	fbos->bindReflectionFrameBuffer();
+	if (arcball.drag)
+	{
+		arcball.now.x = arcball.regNowFlection.x;
+		arcball.now.y = arcball.regNowFlection.y;
+		arcball.now.z = arcball.regNowFlection.z;
+		arcball.now.w = arcball.regNowFlection.w;
+		arcball.wind->damage(1);
+		glMatrixMode(GL_PROJECTION);
+		glLoadIdentity();
+		setProjection();		// put the code to set up matrices here
+	}
+	std::cout << "NOWxyz1\n";
+	std::cout << arcball.regNowFlection.x << " " << arcball.regNowFlection.y << " " << arcball.regNowFlection.z << " \n";
+
+	//std::cout << " " << arcball.regNowFlection.x;
+	renderScene(1);
+	fbos->unbindCurrentFrameBuffer();
+
+	if (arcball.drag)
+	{
+		arcball.now.x = arcball.regNowNormal.x;
+		arcball.now.y = arcball.regNowNormal.y;
+		arcball.now.z = arcball.regNowNormal.z;
+		arcball.now.w = arcball.regNowNormal.w;
+		arcball.wind->damage(1);
+		glMatrixMode(GL_PROJECTION);
+		glLoadIdentity();
+		setProjection();		// put the code to set up matrices here
+	}
+	std::cout << "NOWxyz2\n";
+	std::cout << arcball.regNowNormal.x << " " << arcball.regNowNormal.y << " " << arcball.regNowNormal.z << " \n";
 
 
+	// refraction
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
+	glMultMatrixf(&view_matrix[0][0]);
+	fbos->bindRefractionFrameBuffer();
+	renderScene(2);
+	fbos->unbindCurrentFrameBuffer();
+
+	drawMonitor(1);
+	// draw scene
+	renderScene(0);
 	if (tw->waveBrowser->value() == 1)
 		drawSineWater();
 	else if (tw->waveBrowser->value() == 2)
 		drawHeightWater();
 
-	// draw skybox
-	drawSkybox();
+	//arcball.computeNowRotate(arcball.dx, arcball.dy, arcball.dz, arcball.mx, arcball.my, arcball.mz);
+	//reflect = false;
+	//arcball.getMouseNDC(x,y);
+	//arcball.computeNow(x, y, reflect);
+	//arcball.wind->damage(1);
+
+	////reflect = false;
+	//std::cout << "===================\n";
+	//std::cout << "Dxyz\n";
+	//std::cout << arcball.dx << " " << arcball.dy << " " << arcball.dz << " " << arcball.mx << " " << arcball.my << " " << arcball.mz << " \n";
+	////std::cout << "EYExyz\n";
+	////std::cout << arcball.eyeX << " " << arcball.eyeY << " " << arcball.eyeZ << " \n";
+	////std::cout << "ISxyz\n";
+	////std::cout << arcball.isx << " " << arcball.isy << " " << arcball.isz << " \n";
+	//std::cout << "STARTxyz\n";
+	//std::cout << arcball.start.x << " " << arcball.start.y << " " << arcball.start.z << " \n";
+	//std::cout << "NOWxyz\n";
+	//std::cout << arcball.now.x << " " << arcball.now.y << " " << arcball.now.z << " \n";
+	//std::cout << "downXY\n";
+	//std::cout << arcball.downX << " " << arcball.downY  << " \n";
+	////std::cout << "panXY\n";
+	////std::cout << arcball.panX << " " << arcball.panY<< " \n";
+	////std::cout << "initEyeZ\n";
+	////std::cout << arcball.initEyeZ<< " \n";
+	////std::cout << "fieldOfView\n";
+	////std::cout << arcball.fieldOfView << " \n";
+	std::cout << "AAAAAAAAAAAAA";
+
+	arcball.drag = false;
+	//arcball.setup(this, 40, 250, .2f, .4f, 0);
+	//arcball.setup(this, arcball.fieldOfView, arcball.eyeZ, arcball.isx, arcball.isy, arcball.isz);
 }
 
 //************************************************************************
@@ -344,14 +496,17 @@ setProjection()
 
 	// Check whether we use the world camp
 	if (tw->worldCam->value())
+	{
 		arcball.setProjection(false);
+		//reflectArcball.setProjection(false);
+	}
 	// Or we use the top cam
 	else if (tw->topCam->value()) {
 		float wi, he;
 		if (aspect >= 1) {
 			wi = 110;
 			he = wi / aspect;
-		} 
+		}
 		else {
 			he = 110;
 			wi = he * aspect;
@@ -363,8 +518,8 @@ setProjection()
 		glOrtho(-wi, wi, -he, he, 200, -200);
 		glMatrixMode(GL_MODELVIEW);
 		glLoadIdentity();
-		glRotatef(-90,1,0,0);
-	} 
+		glRotatef(-90, 1, 0, 0);
+	}
 	// Or do the train view or other view here
 	//####################################################################
 	// TODO: 
@@ -372,9 +527,10 @@ setProjection()
 	//####################################################################
 	else {
 #ifdef EXAMPLE_SOLUTION
-		trainCamView(this,aspect);
+		trainCamView(this, aspect);
 #endif
 	}
+
 }
 
 //************************************************************************
@@ -395,9 +551,9 @@ void TrainView::drawStuff(bool doingShadows)
 	// don't draw the control points if you're driving 
 	// (otherwise you get sea-sick as you drive through them)
 	if (!tw->trainCam->value()) {
-		for(size_t i=0; i<m_pTrack->points.size(); ++i) {
+		for (size_t i = 0; i < m_pTrack->points.size(); ++i) {
 			if (!doingShadows) {
-				if ( ((int) i) != selectedCube)
+				if (((int)i) != selectedCube)
 					glColor3ub(240, 60, 60);
 				else
 					glColor3ub(240, 240, 30);
@@ -445,10 +601,10 @@ doPick()
 {
 	// since we'll need to do some GL stuff so we make this window as 
 	// active window
-	make_current();		
+	make_current();
 
 	// where is the mouse?
-	int mx = Fl::event_x(); 
+	int mx = Fl::event_x();
 	int my = Fl::event_y();
 
 	// get the viewport - most reliable way to turn mouse coords into GL coords
@@ -458,23 +614,23 @@ doPick()
 	// Set up the pick matrix on the stack - remember, FlTk is
 	// upside down!
 	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity ();
-	gluPickMatrix((double)mx, (double)(viewport[3]-my), 
-						5, 5, viewport);
+	glLoadIdentity();
+	gluPickMatrix((double)mx, (double)(viewport[3] - my),
+		5, 5, viewport);
 
 	// now set up the projection
 	setProjection();
 
 	// now draw the objects - but really only see what we hit
 	GLuint buf[100];
-	glSelectBuffer(100,buf);
+	glSelectBuffer(100, buf);
 	glRenderMode(GL_SELECT);
 	glInitNames();
 	glPushName(0);
 
 	// draw the cubes, loading the names as we go
-	for(size_t i=0; i<m_pTrack->points.size(); ++i) {
-		glLoadName((GLuint) (i+1));
+	for (size_t i = 0; i < m_pTrack->points.size(); ++i) {
+		glLoadName((GLuint)(i + 1));
 		m_pTrack->points[i].draw();
 	}
 
@@ -485,11 +641,12 @@ doPick()
 		// are multiple objects, you really want to pick the closest
 		// one - see the OpenGL manual 
 		// remember: we load names that are one more than the index
-		selectedCube = buf[3]-1;
-	} else // nothing hit, nothing selected
+		selectedCube = buf[3] - 1;
+	}
+	else // nothing hit, nothing selected
 		selectedCube = -1;
 
-	printf("Selected Cube %d\n",selectedCube);
+	printf("Selected Cube %d\n", selectedCube);
 }
 
 void TrainView::setUBO()
@@ -593,7 +750,7 @@ initSkyboxShader()
 		faces.push_back(PROJECT_DIR"/Images/skybox/back.jpg");
 		cubemapTexture = loadCubemap(faces);
 	}
-	
+
 }
 unsigned int TrainView::
 loadCubemap(std::vector<std::string> faces)
@@ -658,9 +815,9 @@ initTilesShader()
 	if (!this->tilesShader)
 		this->tilesShader = new
 		Shader(
-			PROJECT_DIR "/src/shaders/simple.vert",
+			PROJECT_DIR "/src/shaders/tiles.vert",
 			nullptr, nullptr, nullptr,
-			PROJECT_DIR "/src/shaders/simple.frag");
+			PROJECT_DIR "/src/shaders/tiles.frag");
 
 	if (!this->tiles) {
 		GLfloat  vertices[] = {
@@ -813,27 +970,41 @@ initTilesShader()
 	if (!this->tilesTexture)
 		this->tilesTexture = new Texture2D(PROJECT_DIR "/Images/tiles.jpg");
 }
+/*
+0: Don't clip
+1: Clip for reflection
+2: Clip for refraction
+*/
 void TrainView::
-drawTiles()
+drawTiles(int mode=0)
 {
 	//bind shader
 	this->tilesShader->Use();
+
+	setUBO();
 
 	glm::mat4 model_matrix = glm::mat4();
 	model_matrix = glm::translate(model_matrix, this->source_pos);
 	model_matrix = glm::scale(model_matrix, glm::vec3(100.0f, 100.0f, 100.0f));
 	glUniformMatrix4fv(
-		glGetUniformLocation(this->tilesShader->Program, "u_model"), 1, GL_FALSE, &model_matrix[0][0]);
+		glGetUniformLocation(this->tilesShader->Program, "u_model"), 
+		1, 
+		GL_FALSE, 
+		&model_matrix[0][0]);
 	glUniform3fv(
 		glGetUniformLocation(this->tilesShader->Program, "u_color"),
 		1,
 		&glm::vec3(0.0f, 1.0f, 0.0f)[0]);
+
 	this->tilesTexture->bind(0);
 	glUniform1i(glGetUniformLocation(this->tilesShader->Program, "u_texture"), 0);
+	
+	glUniform1i(glGetUniformLocation(this->tilesShader->Program, "clip_mode"), mode);
 
 	//bind VAO
 	glBindVertexArray(this->tiles->vao);
 
+	//glEnable(GL_CLIP_DISTANCE0);
 	glDrawElements(GL_TRIANGLES, this->tiles->element_amount, GL_UNSIGNED_INT, 0);
 
 	//unbind VAO
@@ -842,8 +1013,6 @@ drawTiles()
 	//unbind shader(switch to fixed pipeline)
 	glUseProgram(0);
 }
-
-
 
 void TrainView::
 initSineWater()
@@ -862,54 +1031,70 @@ initSineWater()
 		unsigned int height = 2.0f / size;
 
 		GLfloat* vertices = new GLfloat[width * height * 4 * 3]();
-		GLfloat* normal = new GLfloat[width * height * 4 * 3]();
 		GLfloat* texture_coordinate = new GLfloat[width * height * 4 * 2]();
 		GLuint* element = new GLuint[width * height * 6]();
 
+		/*
+		 Vertices
+		*2 -- *3
+		 | \   |
+		 |  \  |
+		*1 -- *0
+		*/
 		for (int i = 0; i < width * height * 4 * 3; i += 12)
 		{
 			unsigned int h = i / 12 / width;
 			unsigned int w = i / 12 % width;
-
+			//point 0
 			vertices[i] = w * size - 1.0f + size;
 			vertices[i + 1] = 0.6f;
 			vertices[i + 2] = h * size - 1.0f + size;
-
+			//point 1
 			vertices[i + 3] = vertices[i] - size;
 			vertices[i + 4] = 0.6f;
 			vertices[i + 5] = vertices[i + 2];
-
+			//point 2
 			vertices[i + 6] = vertices[i + 3];
 			vertices[i + 7] = 0.6f;
 			vertices[i + 8] = vertices[i + 5] - size;
-
+			//point 3
 			vertices[i + 9] = vertices[i];
 			vertices[i + 10] = 0.6f;
 			vertices[i + 11] = vertices[i + 8];
 		}
 
-		for (int i = 0; i < width * height * 4 * 3; i += 3)
+		// texture
+		for (int i = 0; i < height; i++)
 		{
-			normal[i] = 0.0f;
-			normal[i + 1] = 1.0f;
-			normal[i + 2] = 0.0f;
+			for (int j = 0; j < width; j++)
+			{
+				//point 0
+				texture_coordinate[i * width * 8 + j * 8 + 0] = (float)(j + 1) / width;
+				texture_coordinate[i * width * 8 + j * 8 + 1] = (float)(i + 1) / height;
+				//point 1
+				texture_coordinate[i * width * 8 + j * 8 + 2] = (float)(j + 0) / width;
+				texture_coordinate[i * width * 8 + j * 8 + 3] = (float)(i + 1) / height;
+				//point 2
+				texture_coordinate[i * width * 8 + j * 8 + 4] = (float)(j + 0) / width;
+				texture_coordinate[i * width * 8 + j * 8 + 5] = (float)(i + 0) / height;
+				//point 3												 
+				texture_coordinate[i * width * 8 + j * 8 + 6] = (float)(j + 1) / width;
+				texture_coordinate[i * width * 8 + j * 8 + 7] = (float)(i + 0) / height;
+			}
 		}
 
-		for (int i = 0; i < width * height * 4 * 2; i += 8)
-		{
-			texture_coordinate[i] = 1.0f;
-			texture_coordinate[i + 1] = 1.0f;
+		// element
+		/*
+		element mesh 0
+		   2
+		 / |
+		0--1
 
-			texture_coordinate[i + 2] = 0.0f;
-			texture_coordinate[i + 3] = 1.0f;
-
-			texture_coordinate[i + 4] = 0.0f;
-			texture_coordinate[i + 5] = 0.0f;
-
-			texture_coordinate[i + 6] = 1.0f;
-			texture_coordinate[i + 7] = 0.0f;
-		}
-
+		element mesh 1
+		1--0
+		| /
+		2
+		*/
 		for (int i = 0, j = 0; i < width * height * 6; i += 6, j += 4)
 		{
 			element[i] = j + 1;
@@ -920,6 +1105,7 @@ initSineWater()
 			element[i + 4] = j + 2;
 			element[i + 5] = element[i];
 		}
+
 
 		this->sineWater = new VAO;
 		this->sineWater->element_amount = width * height * 6;
@@ -935,17 +1121,11 @@ initSineWater()
 		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (GLvoid*)0);
 		glEnableVertexAttribArray(0);
 
-		// Normal attribute
-		glBindBuffer(GL_ARRAY_BUFFER, this->sineWater->vbo[1]);
-		glBufferData(GL_ARRAY_BUFFER, width * height * 4 * 3 * sizeof(GLfloat), normal, GL_STATIC_DRAW);
-		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (GLvoid*)0);
-		glEnableVertexAttribArray(1);
-
 		// Texture Coordinate attribute
-		glBindBuffer(GL_ARRAY_BUFFER, this->sineWater->vbo[2]);
+		glBindBuffer(GL_ARRAY_BUFFER, this->sineWater->vbo[1]);
 		glBufferData(GL_ARRAY_BUFFER, width * height * 4 * 2 * sizeof(GLfloat), texture_coordinate, GL_STATIC_DRAW);
-		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(GLfloat), (GLvoid*)0);
-		glEnableVertexAttribArray(2);
+		glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(GLfloat), (GLvoid*)0);
+		glEnableVertexAttribArray(1);
 
 		//Element attribute
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, this->sineWater->ebo);
@@ -973,37 +1153,30 @@ drawSineWater()
 		1,
 		&glm::vec3(0.0f, 1.0f, 0.0f)[0]);
 
-	glUniform1f(glGetUniformLocation(this->sineWaterShader->Program, ("amplitude")), 0.5f);
-	glUniform1f(glGetUniformLocation(this->sineWaterShader->Program, ("wavelength")), 0.5f);
-	glUniform1f(glGetUniformLocation(this->sineWaterShader->Program, ("speed")), 1.0f);
+	//高度
+	glUniform1f(glGetUniformLocation(this->sineWaterShader->Program, ("amplitude")), tw->amplitude->value());
+	//波長
+	glUniform1f(glGetUniformLocation(this->sineWaterShader->Program, ("wavelength")), tw->waveLength->value());
+	//時間
 	glUniform1f(glGetUniformLocation(this->sineWaterShader->Program, ("time")), t_time);
 
+	//skybox
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
 	glUniform1i(glGetUniformLocation(this->sineWaterShader->Program, "skybox"), 0);
 
-	this->tilesTexture->bind(1);
-	glUniform1i(glGetUniformLocation(this->sineWaterShader->Program, "tiles"), 1);
+	//周圍的圍牆
+	this->fbos->refractionTexture2D.bind(1);
+	glUniform1i(glGetUniformLocation(this->sineWaterShader->Program, "refractionTexture"), 1);
+	this->fbos->reflectionTexture2D.bind(2);
+	glUniform1i(glGetUniformLocation(this->sineWaterShader->Program, "reflectionTexture"), 2);
 
-
-	this->moveFactor += this->WAVE_SPEED * t_time;
-	this->moveFactor /= 1.0f;
-	glUniform1f(glGetUniformLocation(this->sineWaterShader->Program, "moveFactor"), moveFactor);
-
+	 //取得相機座標位置
 	GLfloat* view_matrix = new GLfloat[16];
-
 	glGetFloatv(GL_MODELVIEW_MATRIX, view_matrix);
-
 	view_matrix = inverse(view_matrix);
-
 	this->cameraPosition = glm::vec3(view_matrix[12], view_matrix[13], view_matrix[14]);
-	glUniform3fv(glGetUniformLocation(this->sineWaterShader->Program, "cameraPos"), 1, &glm::vec3(cameraPosition)[0]);
-
-	this->lightColor = glm::vec3(0.5f, 0.5f, 0.1f);
-	glUniform3fv(glGetUniformLocation(this->sineWaterShader->Program, "lightColor"), 1, &glm::vec3(lightColor)[0]);
-
-	this->lightPosition = glm::vec3(50.0f, 200.0f, 50.0f);
-	glUniform3fv(glGetUniformLocation(this->sineWaterShader->Program, "lightPosition"), 1, &glm::vec3(lightPosition)[0]);
+	glUniform3fv(glGetUniformLocation(this->sineWaterShader->Program, "cameraPos"), 1, &glm::vec3(cameraPosition)[0]);	
 
 	//bind VAO
 	glBindVertexArray(this->sineWater->vao);
@@ -1022,11 +1195,13 @@ void TrainView::
 initHeightWater()
 {
 	if (!this->heightWaterShader)
+	{
 		this->heightWaterShader = new
-		Shader(
-			PROJECT_DIR "/src/shaders/heightMapVS.glsl",
-			nullptr, nullptr, nullptr,
-			PROJECT_DIR "/src/shaders/heightMapFS.glsl");
+			Shader(
+				PROJECT_DIR "/src/shaders/heightMapVS.glsl",
+				nullptr, nullptr, nullptr,
+				PROJECT_DIR "/src/shaders/heightMapFS.glsl");
+	}
 
 	if (!this->heightWater) {
 
@@ -1035,58 +1210,70 @@ initHeightWater()
 		unsigned int height = 2.0f / size;
 
 		GLfloat* vertices = new GLfloat[width * height * 4 * 3]();
-		GLfloat* normal = new GLfloat[width * height * 4 * 3]();
 		GLfloat* texture_coordinate = new GLfloat[width * height * 4 * 2]();
 		GLuint* element = new GLuint[width * height * 6]();
 
-		// vertices
+		/*
+		 Vertices
+		*2 -- *3
+		 | \   |
+		 |  \  |
+		*1 -- *0
+		*/
 		for (int i = 0; i < width * height * 4 * 3; i += 12)
 		{
 			unsigned int h = i / 12 / width;
 			unsigned int w = i / 12 % width;
-
+			//point 0
 			vertices[i] = w * size - 1.0f + size;
 			vertices[i + 1] = 0.6f;
 			vertices[i + 2] = h * size - 1.0f + size;
-
+			//point 1
 			vertices[i + 3] = vertices[i] - size;
 			vertices[i + 4] = 0.6f;
 			vertices[i + 5] = vertices[i + 2];
-
+			//point 2
 			vertices[i + 6] = vertices[i + 3];
 			vertices[i + 7] = 0.6f;
 			vertices[i + 8] = vertices[i + 5] - size;
-
+			//point 3
 			vertices[i + 9] = vertices[i];
 			vertices[i + 10] = 0.6f;
 			vertices[i + 11] = vertices[i + 8];
 		}
-		
-		// normal 
-		for (int i = 0; i < width * height * 4 * 3; i += 3)
+
+		// texture
+		for (int i = 0; i < height; i++)
 		{
-			normal[i] = 0.0f;
-			normal[i + 1] = 1.0f;
-			normal[i + 2] = 0.0f;
-		}
-
-		// textrue
-		for (int i = 0; i < width * height * 4 * 2; i += 8)
-		{
-			texture_coordinate[i] = 1.0f;
-			texture_coordinate[i + 1] = 1.0f;
-
-			texture_coordinate[i + 2] = 0.0f;
-			texture_coordinate[i + 3] = 1.0f;
-
-			texture_coordinate[i + 4] = 0.0f;
-			texture_coordinate[i + 5] = 0.0f;
-
-			texture_coordinate[i + 6] = 1.0f;
-			texture_coordinate[i + 7] = 0.0f;
+			for (int j = 0; j < width; j++)
+			{
+				//point 0
+				texture_coordinate[i * width * 8 + j * 8 + 0] = (float)(j + 1) / width;
+				texture_coordinate[i * width * 8 + j * 8 + 1] = (float)(i + 1) / height;
+				//point 1
+				texture_coordinate[i * width * 8 + j * 8 + 2] = (float)(j + 0) / width;
+				texture_coordinate[i * width * 8 + j * 8 + 3] = (float)(i + 1) / height;
+				//point 2
+				texture_coordinate[i * width * 8 + j * 8 + 4] = (float)(j + 0) / width;
+				texture_coordinate[i * width * 8 + j * 8 + 5] = (float)(i + 0) / height;
+				//point 3												 i
+				texture_coordinate[i * width * 8 + j * 8 + 6] = (float)(j + 1) / width;
+				texture_coordinate[i * width * 8 + j * 8 + 7] = (float)(i + 0) / height;
+			}
 		}
 
 		// element
+		/*
+		element mesh 0
+		   2
+		 / | 
+		0--1
+
+		element mesh 1
+		1--0
+		| /
+		2  
+		*/
 		for (int i = 0, j = 0; i < width * height * 6; i += 6, j += 4)
 		{
 			element[i] = j + 1;
@@ -1099,36 +1286,26 @@ initHeightWater()
 		}
 
 
-
 		this->heightWater = new VAO;
 		this->heightWater->element_amount = width * height * 6;
 		glGenVertexArrays(1, &this->heightWater->vao);
-		glGenBuffers(3, this->heightWater->vbo);
+		glGenBuffers(2, this->heightWater->vbo);
 		glGenBuffers(1, &this->heightWater->ebo);
 
 		glBindVertexArray(this->heightWater->vao);
-
 		glUseProgram(this->heightWaterShader->Program);
-		glUniform1f(
-			glGetUniformLocation(this->heightWaterShader->Program, "a_time"), sinWaterCounter);
-		
+
 		// Position attribute
 		glBindBuffer(GL_ARRAY_BUFFER, this->heightWater->vbo[0]);
 		glBufferData(GL_ARRAY_BUFFER, width * height * 4 * 3 * sizeof(GLfloat), vertices, GL_STATIC_DRAW);
 		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (GLvoid*)0);
 		glEnableVertexAttribArray(0);
-		
-		// Normal attribute
-		glBindBuffer(GL_ARRAY_BUFFER, this->heightWater->vbo[1]);
-		glBufferData(GL_ARRAY_BUFFER, width * height * 4 * 3 * sizeof(GLfloat), normal, GL_STATIC_DRAW);
-		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (GLvoid*)0);
-		glEnableVertexAttribArray(1);
 
 		// Texture Coordinate attribute
-		glBindBuffer(GL_ARRAY_BUFFER, this->heightWater->vbo[2]);
+		glBindBuffer(GL_ARRAY_BUFFER, this->heightWater->vbo[1]);
 		glBufferData(GL_ARRAY_BUFFER, width * height * 4 * 2 * sizeof(GLfloat), texture_coordinate, GL_STATIC_DRAW);
-		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(GLfloat), (GLvoid*)0);
-		glEnableVertexAttribArray(2);
+		glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(GLfloat), (GLvoid*)0);
+		glEnableVertexAttribArray(1);
 
 		//Element attribute
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, this->heightWater->ebo);
@@ -1139,29 +1316,33 @@ initHeightWater()
 
 	}
 
-	for (int i = 0; i < 200; ++i)
+	if (!heightTexture.size() > 0)
 	{
-		std::string name;
-		if (i < 10)
-			name = "00" + std::to_string(i);
-		else if (i < 100)
-			name = "0" + std::to_string(i);
-		else
-			name = std::to_string(i);
+		for (int i = 0; i < 200; ++i)
+		{
+			std::string name;
+			if (i < 10)
+				name = "00" + std::to_string(i);
+			else if (i < 100)
+				name = "0" + std::to_string(i);
+			else
+				name = std::to_string(i);
 
-		this->heightTexture.push_back(Texture2D(("Images/waves5/" + name + ".png").c_str()));
+			this->heightTexture.push_back(Texture2D((PROJECT_DIR"/Images/waves5/" + name + ".png").c_str()));
+		}
 	}
 }
 void TrainView::
 drawHeightWater()
 {
-	glEnable(GL_BLEND);
 	//bind shader
 	this->heightWaterShader->Use();
 
+	// doing scale and transform
 	glm::mat4 model_matrix = glm::mat4();
 	model_matrix = glm::translate(model_matrix, this->source_pos);
 	model_matrix = glm::scale(model_matrix, glm::vec3(100.0f, 100.0f, 100.0f));
+
 
 	glUniformMatrix4fv(
 		glGetUniformLocation(this->heightWaterShader->Program, "u_model"),
@@ -1170,59 +1351,121 @@ drawHeightWater()
 		glGetUniformLocation(this->heightWaterShader->Program, "u_color"),
 		1, &glm::vec3(0.0f, 1.0f, 0.0f)[0]);
 
-	heightTexture[heightMapIndex].bind(0);
-	glUniform1i(glGetUniformLocation(this->heightWaterShader->Program, "u_texture"), 0);
-	this->tilesTexture->bind(1);
-	glUniform1i(glGetUniformLocation(this->heightWaterShader->Program, "tiles"), 1);
+	//HeightMap
+	heightTexture[heightMapIndex% heightTexture.size()].bind(0);
+	glUniform1i(glGetUniformLocation(this->heightWaterShader->Program, "u_height"), 0);
+	//折射
+	this->fbos->refractionTexture2D.bind(1);
+	glUniform1i(glGetUniformLocation(this->heightWaterShader->Program, "refractionTexture"), 1);
+	//反射
+	this->fbos->reflectionTexture2D.bind(2);
+	glUniform1i(glGetUniformLocation(this->heightWaterShader->Program, "reflectionTexture"), 2);
 
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_CUBE_MAP, this->cubemapTexture);
-	glUniform1i(glGetUniformLocation(this->heightWaterShader->Program, "skyBox"), 0);
-	//// ffff
-	//glUniform1f(glGetUniformLocation(this->heightWaterShader->Program, "amplitude"), tw->amplitude->value());
-	//glUniform1f(glGetUniformLocation(this->heightWaterShader->Program, "wavelength"), tw->waveLength->value());
-
-	//glUniform1f(glGetUniformLocation(this->heightWaterShader->Program, "time"), t_time);
-
+	//取得相機座標位置
 	GLfloat* view_matrix = new GLfloat[16];
 	glGetFloatv(GL_MODELVIEW_MATRIX, view_matrix);
 	view_matrix = inverse(view_matrix);
-
 	this->cameraPosition = glm::vec3(view_matrix[12], view_matrix[13], view_matrix[14]);
-	glUniform3fv(glGetUniformLocation(this->heightWaterShader->Program, "camera"), 1, &cameraPosition[0]);
+	glUniform3fv(glGetUniformLocation(this->heightWaterShader->Program, "cameraPos"), 1, &glm::vec3(cameraPosition)[0]);
+
 
 	//bind VAO
 	glBindVertexArray(this->heightWater->vao);
-
 	glDrawElements(GL_TRIANGLES, this->heightWater->element_amount, GL_UNSIGNED_INT, 0);
-
-	//draw drops
-	for (int i = 0; i < allDrop.size(); ++i)
-	{
-		if (t_time - allDrop[i].time > allDrop[i].keepTime)
-		{
-			allDrop.erase(allDrop.begin() + i);
-			--i;
-			continue;
-		}
-
-		glUniform2f(glGetUniformLocation(this->heightWaterShader->Program, "dropPoint"), allDrop[i].point.x, allDrop[i].point.y);
-		glUniform1f(glGetUniformLocation(this->heightWaterShader->Program, "dropTime"), allDrop[i].time);
-		glUniform1f(glGetUniformLocation(this->heightWaterShader->Program, "interactiveRadius"), allDrop[i].radius);
-
-		glDrawElements(GL_TRIANGLES, this->heightWater->element_amount, GL_UNSIGNED_INT, 0);
-	}
 
 	//unbind VAO
 	glBindVertexArray(0);
 
 	//unbind shader(switch to fixed pipeline)
 	glUseProgram(0);
-
-	glDisable(GL_BLEND);
+	heightMapIndex++;
 
 }
 
+// 單純做一個監視視窗確認FBO的東東是否有問題，
+// 基本上創一個2D的直接貼上去看就好。
+void TrainView::
+initMonitor()
+{
+	if (!this->monitorShader)
+		this->monitorShader = new
+		Shader(
+			PROJECT_DIR "/src/shaders/monitorVS.glsl",
+			nullptr, nullptr, nullptr,
+			PROJECT_DIR "/src/shaders/monitorFS.glsl");
+
+	if (!this->monitor) {
+		GLfloat  vertices[] = {
+			-1.0f, 0.0f,
+			-1.0f, -1.0f,
+			0.0f, -1.0f,
+			0.0f, 0.0f
+		};
+		GLfloat  texture_coordinate[] = {
+			0.0f, 1.0f,
+			0.0f, 0.0f,
+			1.0f, 0.0f,
+			1.0f, 1.0f,
+		};
+		GLuint element[] = {
+			0, 1, 2,
+			2, 3, 0,
+		};
+
+		this->monitor = new VAO;
+		this->monitor->element_amount = sizeof(element) / sizeof(GLuint);
+		glGenVertexArrays(1, &this->monitor->vao);
+		glGenBuffers(2, this->monitor->vbo);
+		glGenBuffers(1, &this->monitor->ebo);
+
+		glBindVertexArray(this->monitor->vao);
+
+		// Position attribute
+		glBindBuffer(GL_ARRAY_BUFFER, this->monitor->vbo[0]);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+		glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(GLfloat), (GLvoid*)0);
+		glEnableVertexAttribArray(0);
+
+		// Texture Coordinate attribute
+		glBindBuffer(GL_ARRAY_BUFFER, this->monitor->vbo[1]);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(texture_coordinate), texture_coordinate, GL_STATIC_DRAW);
+		glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(GLfloat), (GLvoid*)0);
+		glEnableVertexAttribArray(1);
+
+		//Element attribute
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, this->monitor->ebo);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(element), element, GL_STATIC_DRAW);
+
+		// Unbind VAO
+		glBindVertexArray(0);
+	}
+}
+
+void TrainView::
+drawMonitor(int mode)
+{
+	//bind shader
+	this->monitorShader->Use();
+
+	if(mode==1)
+		this->fbos->reflectionTexture2D.bind(0);
+	else
+	{
+		this->fbos->refractionTexture2D.bind(0);
+	}
+	glUniform1i(glGetUniformLocation(this->monitorShader->Program, "u_texture"), 0);
+
+	//bind VAO
+	glBindVertexArray(this->monitor->vao);
+
+	glDrawElements(GL_TRIANGLES, this->monitor->element_amount, GL_UNSIGNED_INT, 0);
+
+	//unbind VAO
+	glBindVertexArray(0);
+
+	//unbind shader(switch to fixed pipeline)
+	glUseProgram(0);
+}
 GLfloat* TrainView::
 inverse(GLfloat* m)
 {
@@ -1355,3 +1598,13 @@ inverse(GLfloat* m)
 
 	return inv;
 }
+
+void TrainView::
+renderScene(int mode =0)
+{
+	// draw skybox
+	drawSkybox();
+	// start draw water
+	drawTiles(mode);
+}
+

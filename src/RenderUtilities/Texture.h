@@ -45,6 +45,11 @@ public:
 
 		img.release();
 	}
+	Texture2D(Type texture_type = Texture2D::TEXTURE_DEFAULT) :
+		type(texture_type)
+	{
+		
+	}
 	void bind(GLenum bind_unit)
 	{
 		glActiveTexture(GL_TEXTURE0 + bind_unit);
@@ -56,6 +61,11 @@ public:
 		glBindTexture(GL_TEXTURE_2D, 0);
 	}
 	glm::ivec2 size;
+
+	void setID(GLuint inputID)
+	{
+		this->id = inputID;
+	}
 private:
 	GLuint id;
 

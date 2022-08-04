@@ -33,7 +33,7 @@
 
 
 int main(int, char**)
-{
+ {
 	printf("CS559 Train Assignment\n");
 
 	TrainWindow tw;

@@ -152,6 +152,22 @@ TrainWindow(const int x, const int y)
 
 		pty += 110;
 
+		amplitude = new Fl_Value_Slider(655, pty, 140, 20, "Amp");
+		amplitude->range(0.00, 1.00);
+		amplitude->value(0.50);
+		amplitude->align(FL_ALIGN_LEFT);
+		amplitude->type(FL_HORIZONTAL);
+
+		pty += 30;
+
+		waveLength = new Fl_Value_Slider(655, pty, 140, 20, "length");
+		waveLength->range(0.00, 1.00);
+		waveLength->value(0.50);
+		waveLength->align(FL_ALIGN_LEFT);
+		waveLength->type(FL_HORIZONTAL);
+
+		pty += 30;
+
 
 		// TODO: add widgets for all of your fancier features here
 #ifdef EXAMPLE_SOLUTION
