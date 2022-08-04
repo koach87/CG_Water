@@ -378,62 +378,10 @@ void TrainView::draw()
 	glm::mat4 view_matrix_inv = glm::inverse(view_matrix);
 	view_matrix_rotation = view_matrix;
 	view_matrix_rotation[3][0] = view_matrix_rotation[3][1] = view_matrix_rotation[3][2] = 0.0f;
-	//view_matrix_translation[3] = glm::vec4(-view_matrix_inv[3][0], view_matrix_inv[3][1], -view_matrix_inv[3][2], 1.0f);
 	view_matrix_translation[3] = glm::vec4(-view_matrix_inv[3][0], view_matrix_inv[3][1]*0.75f, -view_matrix_inv[3][2], 1.0f);
 	view_matrix_rotation[1] = -view_matrix_rotation[1];
 	new_view_matrix = view_matrix_rotation * view_matrix_translation;
 
-	////view_matrix = inverse(view_matrix);
-	////view_matrix_neg = inverse(view_matrix_neg);
-
-	std::cout << "======\nOri:\n";
-	for (int i = 0; i < 4; i++)
-	{
-		for (int j = 0; j < 4; j++)
-		{
-			std::cout << view_matrix[j][i] << "\t";
-		}
-		std::cout << "\n";
-	}
-	std::cout << "======\nview_matrix_inv:\n";
-	for (int i = 0; i < 4; i++)
-	{
-		for (int j = 0; j < 4; j++)
-		{
-			std::cout << view_matrix_inv[j][i] << "\t";
-		}
-		std::cout << "\n";
-	}
-
-	std::cout << "======\nview_matrix_rotation:\n";
-	for (int i = 0; i < 4; i++)
-	{
-		for (int j = 0; j < 4; j++)
-		{
-			std::cout << view_matrix_rotation[j][i] << "\t";
-		}
-		std::cout << "\n";
-	}
-
-	std::cout << "======\nview_matrix_translation:\n";
-	for (int i = 0; i < 4; i++)
-	{
-		for (int j = 0; j < 4; j++)
-		{
-			std::cout << view_matrix_translation[j][i] << "\t";
-		}
-		std::cout << "\n";
-	}
-
-	std::cout << "======\nafter:\n";
-	for (int i = 0; i < 4; i++)
-	{
-		for (int j = 0; j < 4; j++)
-		{
-			std::cout << new_view_matrix[j][i] << "\t";
-		}
-		std::cout << "\n";
-	}
 
 
 	glEnable(GL_CLIP_DISTANCE0);
@@ -461,8 +409,10 @@ void TrainView::draw()
 	renderScene(2);
 	fbos->unbindCurrentFrameBuffer();
 
-	// merge
-	drawMonitor(1);
+	// monitor to debug
+	//drawMonitor(1);
+
+
 	// draw scene
 	renderScene(0);
 	if (tw->waveBrowser->value() == 1)
