@@ -5,7 +5,6 @@ layout (location = 1) in vec3 texture_coordinate;
 // for wave
 const float PI = 3.14159;
 const vec4 DIRECTION = vec4(1.0f, 1.0f, 0.0f, 0.0f);
-const float TILING = 6.0f;
 uniform float amplitude;
 uniform float wavelength;
 uniform float time;

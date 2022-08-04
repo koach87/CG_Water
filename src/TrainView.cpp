@@ -48,6 +48,44 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
+
+glm::vec3 ExtractCameraPos(const glm::mat4& a_modelView)
+{
+	// Get the 3 basis vector planes at the camera origin and transform them into model space.
+	//  
+	// NOTE: Planes have to be transformed by the inverse transpose of a matrix
+	//       Nice reference here: http://www.opengl.org/discussion_boards/showthread.php/159564-Clever-way-to-transform-plane-by-matrix
+	//
+	//       So for a transform to model space we need to do:
+	//            inverse(transpose(inverse(MV)))
+	//       This equals : transpose(MV) - see Lemma 5 in http://mathrefresher.blogspot.com.au/2007/06/transpose-of-matrix.html
+	//
+	// As each plane is simply (1,0,0,0), (0,1,0,0), (0,0,1,0) we can pull the data directly from the transpose matrix.
+	//  
+	glm::mat4 modelViewT = glm::transpose(a_modelView);
+
+	// Get plane normals 
+	glm::vec3 n1(modelViewT[0]);
+	glm::vec3 n2(modelViewT[1]);
+	glm::vec3 n3(modelViewT[2]);
+
+	// Get plane distances
+	float d1(modelViewT[0].w);
+	float d2(modelViewT[1].w);
+	float d3(modelViewT[2].w);
+
+	// Get the intersection of these 3 planes
+	// http://paulbourke.net/geometry/3planes/
+	glm::vec3 n2n3 = cross(n2, n3);
+	glm::vec3 n3n1 = cross(n3, n1);
+	glm::vec3 n1n2 = cross(n1, n2);
+
+	glm::vec3 top = (n2n3 * d1) + (n3n1 * d2) + (n1n2 * d3);
+	float denom = dot(n1, n2n3);
+
+	return top / -denom;
+}
+
 //************************************************************************
 //
 // * Constructor to set up the GL window
@@ -334,46 +372,74 @@ void TrainView::draw()
 
 
 	//// calculate view matrixglm::mat4 view_matrix;
-	glm::mat4 view_matrix, view_matrix_rotation, view_matrix_translation(1.0f), new_view_matrix;
+	glm::mat4 view_matrix, view_matrix_rotation, view_matrix_translation(1.0f);
 	glGetFloatv(GL_MODELVIEW_MATRIX, &view_matrix[0][0]);
 
 	// view_matrix_rotation = glm::rotate(view_matrix, glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f)); 
 	glm::mat4 view_matrix_inv = glm::inverse(view_matrix);
 	// this->cameraPosition = glm::vec3(view_matrix_inv[3][0], view_matrix_inv[3][1], view_matrix_inv[3][2]);
+	view_matrix_rotation = view_matrix;
 	view_matrix_rotation[3][0] = view_matrix_rotation[3][1] = view_matrix_rotation[3][2] = 0.0f;
-	view_matrix_translation[3] = glm::vec4(view_matrix_inv[3][0], view_matrix_inv[3][1], view_matrix_inv[3][2], 1.0f);
+	//view_matrix_translation[3] = glm::vec4(view_matrix_inv[3][0], -view_matrix_inv[3][1] + 0.2, view_matrix_inv[3][2], 1.0f);
+	view_matrix_translation[3] = glm::vec4(-view_matrix_inv[3][0], view_matrix_inv[3][1], -view_matrix_inv[3][2], 1.0f);
+	view_matrix_rotation[1] = -view_matrix_rotation[1];
+	//view_matrix_translation[3] = glm::vec4(-view_matrix_inv[3][0], 0.0f, -view_matrix_inv[3][2], 1.0f);
+	//view_matrix_translation[3] = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+	//view_matrix_translation[3] = glm::vec4(camPos.x, camPos.y, camPos.z, 1.0f);
 	new_view_matrix = view_matrix_rotation * view_matrix_translation;
+
 	////view_matrix = inverse(view_matrix);
 	////view_matrix_neg = inverse(view_matrix_neg);
-	/*for (int i = 0; i < 16; i++)
+
+	std::cout << "======\nOri:\n";
+	for (int i = 0; i < 4; i++)
 	{
-		view_matrix_neg[i] = view_matrix_neg[i];
-	}*/
-	//// x, y, z
-	//this->cameraPosition = glm::vec3(view_matrix[12], view_matrix[13], view_matrix[14]);
-	////view_matrix_neg[12] = -view_matrix_neg[12];
-	////view_matrix_neg[13] = -view_matrix_neg[13];
-	////view_matrix_neg[14] = -view_matrix_neg[14];
+		for (int j = 0; j < 4; j++)
+		{
+			std::cout << view_matrix[j][i] << "\t";
+		}
+		std::cout << "\n";
+	}
+	std::cout << "======\nview_matrix_inv:\n";
+	for (int i = 0; i < 4; i++)
+	{
+		for (int j = 0; j < 4; j++)
+		{
+			std::cout << view_matrix_inv[j][i] << "\t";
+		}
+		std::cout << "\n";
+	}
 
-	
-	//for (int i = 0; i < 16; i++)
-	//{
-	//	std::cout << view_matrix[i] << "\t";
-	//}
-	//std::cout << "\n";
-	//std::cout << cameraPosition.x << "\t" << cameraPosition.y << "\t" << cameraPosition.z << "\n";
+	std::cout << "======\nview_matrix_rotation:\n";
+	for (int i = 0; i < 4; i++)
+	{
+		for (int j = 0; j < 4; j++)
+		{
+			std::cout << view_matrix_rotation[j][i] << "\t";
+		}
+		std::cout << "\n";
+	}
 
-	//// calculate projection matrix
-	//GLfloat* proj_matrix = new GLfloat[16];
-	//glGetFloatv(GL_PROJECTION_MATRIX, proj_matrix);
-	//proj_matrix = inverse(proj_matrix);
-	//// x, y, z
-	//for (int i = 0; i < 16; i++)
-	//{
-	//	std::cout << proj_matrix[i] << "\t";
-	//}
-	//std::cout << "\n";
-	//
+	std::cout << "======\nview_matrix_translation:\n";
+	for (int i = 0; i < 4; i++)
+	{
+		for (int j = 0; j < 4; j++)
+		{
+			std::cout << view_matrix_translation[j][i] << "\t";
+		}
+		std::cout << "\n";
+	}
+
+	std::cout << "======\nafter:\n";
+	for (int i = 0; i < 4; i++)
+	{
+		for (int j = 0; j < 4; j++)
+		{
+			std::cout << new_view_matrix[j][i] << "\t";
+		}
+		std::cout << "\n";
+	}
+
 
 	glEnable(GL_CLIP_DISTANCE0);
 	/*
@@ -382,55 +448,14 @@ void TrainView::draw()
 		1: Clip for reflection
 		2: Clip for refraction
 	*/
-	// for reflection 
-	//arcball.eyeY -= distance;
-
+	// reflection 
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
-	glMultMatrixf(&view_matrix_rotation[0][0]);
-	//glRotatef(90.0f, 0, 1, 0)/*;*/
-
-	//reflect = true;
-	// 
-	//float x, y;
-	//arcball.getMouseNDC(x, y);
-	//arcball.computeNow(x, y, reflect);
-	//arcball.wind->damage(1);
-	//arcball.computeNowRotate(arcball.reflectDx, arcball.reflectDy, arcball.reflectDz, arcball.reflectMx, arcball.reflectMy, arcball.reflectMz);
+	glMultMatrixf(&new_view_matrix[0][0]);
 
 	fbos->bindReflectionFrameBuffer();
-	if (arcball.drag)
-	{
-		arcball.now.x = arcball.regNowFlection.x;
-		arcball.now.y = arcball.regNowFlection.y;
-		arcball.now.z = arcball.regNowFlection.z;
-		arcball.now.w = arcball.regNowFlection.w;
-		arcball.wind->damage(1);
-		glMatrixMode(GL_PROJECTION);
-		glLoadIdentity();
-		setProjection();		// put the code to set up matrices here
-	}
-	std::cout << "NOWxyz1\n";
-	std::cout << arcball.regNowFlection.x << " " << arcball.regNowFlection.y << " " << arcball.regNowFlection.z << " \n";
-
-	//std::cout << " " << arcball.regNowFlection.x;
 	renderScene(1);
 	fbos->unbindCurrentFrameBuffer();
-
-	if (arcball.drag)
-	{
-		arcball.now.x = arcball.regNowNormal.x;
-		arcball.now.y = arcball.regNowNormal.y;
-		arcball.now.z = arcball.regNowNormal.z;
-		arcball.now.w = arcball.regNowNormal.w;
-		arcball.wind->damage(1);
-		glMatrixMode(GL_PROJECTION);
-		glLoadIdentity();
-		setProjection();		// put the code to set up matrices here
-	}
-	std::cout << "NOWxyz2\n";
-	std::cout << arcball.regNowNormal.x << " " << arcball.regNowNormal.y << " " << arcball.regNowNormal.z << " \n";
-
 
 	// refraction
 	glMatrixMode(GL_MODELVIEW);
@@ -440,6 +465,7 @@ void TrainView::draw()
 	renderScene(2);
 	fbos->unbindCurrentFrameBuffer();
 
+	// merge
 	drawMonitor(1);
 	// draw scene
 	renderScene(0);
@@ -448,37 +474,7 @@ void TrainView::draw()
 	else if (tw->waveBrowser->value() == 2)
 		drawHeightWater();
 
-	//arcball.computeNowRotate(arcball.dx, arcball.dy, arcball.dz, arcball.mx, arcball.my, arcball.mz);
-	//reflect = false;
-	//arcball.getMouseNDC(x,y);
-	//arcball.computeNow(x, y, reflect);
-	//arcball.wind->damage(1);
 
-	////reflect = false;
-	//std::cout << "===================\n";
-	//std::cout << "Dxyz\n";
-	//std::cout << arcball.dx << " " << arcball.dy << " " << arcball.dz << " " << arcball.mx << " " << arcball.my << " " << arcball.mz << " \n";
-	////std::cout << "EYExyz\n";
-	////std::cout << arcball.eyeX << " " << arcball.eyeY << " " << arcball.eyeZ << " \n";
-	////std::cout << "ISxyz\n";
-	////std::cout << arcball.isx << " " << arcball.isy << " " << arcball.isz << " \n";
-	//std::cout << "STARTxyz\n";
-	//std::cout << arcball.start.x << " " << arcball.start.y << " " << arcball.start.z << " \n";
-	//std::cout << "NOWxyz\n";
-	//std::cout << arcball.now.x << " " << arcball.now.y << " " << arcball.now.z << " \n";
-	//std::cout << "downXY\n";
-	//std::cout << arcball.downX << " " << arcball.downY  << " \n";
-	////std::cout << "panXY\n";
-	////std::cout << arcball.panX << " " << arcball.panY<< " \n";
-	////std::cout << "initEyeZ\n";
-	////std::cout << arcball.initEyeZ<< " \n";
-	////std::cout << "fieldOfView\n";
-	////std::cout << arcball.fieldOfView << " \n";
-	std::cout << "AAAAAAAAAAAAA";
-
-	arcball.drag = false;
-	//arcball.setup(this, 40, 250, .2f, .4f, 0);
-	//arcball.setup(this, arcball.fieldOfView, arcball.eyeZ, arcball.isx, arcball.isy, arcball.isz);
 }
 
 //************************************************************************
@@ -1001,6 +997,8 @@ drawTiles(int mode=0)
 	
 	glUniform1i(glGetUniformLocation(this->tilesShader->Program, "clip_mode"), mode);
 
+	glUniformMatrix4fv(glGetUniformLocation(this->skyboxShader->Program, "new_view_matrix"), 1, GL_FALSE, &new_view_matrix[0][0]);
+
 	//bind VAO
 	glBindVertexArray(this->tiles->vao);
 
@@ -1047,19 +1045,19 @@ initSineWater()
 			unsigned int w = i / 12 % width;
 			//point 0
 			vertices[i] = w * size - 1.0f + size;
-			vertices[i + 1] = 0.6f;
+			vertices[i + 1] = WATER_HEIGHT;
 			vertices[i + 2] = h * size - 1.0f + size;
 			//point 1
 			vertices[i + 3] = vertices[i] - size;
-			vertices[i + 4] = 0.6f;
+			vertices[i + 4] = WATER_HEIGHT;
 			vertices[i + 5] = vertices[i + 2];
 			//point 2
 			vertices[i + 6] = vertices[i + 3];
-			vertices[i + 7] = 0.6f;
+			vertices[i + 7] = WATER_HEIGHT;
 			vertices[i + 8] = vertices[i + 5] - size;
 			//point 3
 			vertices[i + 9] = vertices[i];
-			vertices[i + 10] = 0.6f;
+			vertices[i + 10] = WATER_HEIGHT;
 			vertices[i + 11] = vertices[i + 8];
 		}
 

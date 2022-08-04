@@ -177,7 +177,6 @@ handle(int e)
 		case FL_RELEASE:
 			if (mode != None) {
 
-				std::cout << "CCCCCCCCCCCCCCC\n";
 				wind->damage(1);
 				mode = None;
 				return 1;
@@ -187,7 +186,6 @@ handle(int e)
 		case FL_DRAG: // if the user drags the mouse
 			if(mode != None) { // we're taking the drags
 				drag = true;
-				std::cout << "BBBBBBBBBBBBBBB\n";
 				float x,y;
 				getMouseNDC(x,y);
 				computeNow(x,y);
@@ -363,19 +361,14 @@ computeNow(const float nowX, const float nowY)
 	//std::cout << "computeNow" << "\n";
 	
 	if (mode==Rotate) {
-
-		onUnitSphere(downX, nowY, reflectDx, reflectDy, reflectDz);
-		onUnitSphere(nowX, downY, reflectMx, reflectMy, reflectMz);
-		computeNowRotate(reflectDx, reflectDy, reflectDz, reflectMx, reflectMy, reflectMz, regNowFlection);
-
 		onUnitSphere(downX, downY, dx, dy, dz);
 		onUnitSphere(nowX, nowY, mx, my, mz);
 		computeNowRotate(dx, dy, dz, mx, my, mz, regNowNormal);
 
-		//now.x = regNowFlection.x;
-		//now.y = regNowFlection.y;
-		//now.z = regNowFlection.z;
-		//now.w = regNowFlection.w;
+		now.x = regNowNormal.x;
+		now.y = regNowNormal.y;
+		now.z = regNowNormal.z;
+		now.w = regNowNormal.w;
 
 		now.renorm();		// just in case...
 	}
@@ -392,17 +385,12 @@ computeNow(const float nowX, const float nowY)
 void ArcBallCam::
 computeNowRotate(float Dx, float Dy, float Dz, float Mx, float My, float Mz, Quat& reg)
 {
-	//std::cout << "computeNowRotate" << "\n";
 	// here we compute the quaternion between these two points
 	reg.x = Dy * Mz - Dz * My;
 	reg.y = Dz * Mx - Dx * Mz;
 	reg.z = Dx * My - Dy * Mx;
 	reg.w = Dx * Mx + Dy * My + Dz * Mz;
 
-	//now.x = Dy * Mz - Dz * My;
-	//now.y = Dz * Mx - Dx * Mz;
-	//now.z = Dx * My - Dy * Mx;
-	//now.w = Dx * Mx + Dy * My + Dz * Mz;
 }
 
 //*****************************************************************************

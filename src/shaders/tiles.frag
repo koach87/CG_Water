@@ -16,4 +16,5 @@ void main()
 {   
     vec3 color = vec3(texture(u_texture, f_in.texture_coordinate));
     f_color = vec4(color, 1.0f);
+    //f_color = vec4(normalize(f_in.position),1.0f);
 }
