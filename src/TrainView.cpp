@@ -375,17 +375,12 @@ void TrainView::draw()
 	glm::mat4 view_matrix, view_matrix_rotation, view_matrix_translation(1.0f);
 	glGetFloatv(GL_MODELVIEW_MATRIX, &view_matrix[0][0]);
 
-	// view_matrix_rotation = glm::rotate(view_matrix, glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f)); 
 	glm::mat4 view_matrix_inv = glm::inverse(view_matrix);
-	// this->cameraPosition = glm::vec3(view_matrix_inv[3][0], view_matrix_inv[3][1], view_matrix_inv[3][2]);
 	view_matrix_rotation = view_matrix;
 	view_matrix_rotation[3][0] = view_matrix_rotation[3][1] = view_matrix_rotation[3][2] = 0.0f;
-	//view_matrix_translation[3] = glm::vec4(view_matrix_inv[3][0], -view_matrix_inv[3][1] + 0.2, view_matrix_inv[3][2], 1.0f);
-	view_matrix_translation[3] = glm::vec4(-view_matrix_inv[3][0], view_matrix_inv[3][1], -view_matrix_inv[3][2], 1.0f);
+	//view_matrix_translation[3] = glm::vec4(-view_matrix_inv[3][0], view_matrix_inv[3][1], -view_matrix_inv[3][2], 1.0f);
+	view_matrix_translation[3] = glm::vec4(-view_matrix_inv[3][0], view_matrix_inv[3][1]*0.75f, -view_matrix_inv[3][2], 1.0f);
 	view_matrix_rotation[1] = -view_matrix_rotation[1];
-	//view_matrix_translation[3] = glm::vec4(-view_matrix_inv[3][0], 0.0f, -view_matrix_inv[3][2], 1.0f);
-	//view_matrix_translation[3] = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
-	//view_matrix_translation[3] = glm::vec4(camPos.x, camPos.y, camPos.z, 1.0f);
 	new_view_matrix = view_matrix_rotation * view_matrix_translation;
 
 	////view_matrix = inverse(view_matrix);
@@ -452,6 +447,7 @@ void TrainView::draw()
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 	glMultMatrixf(&new_view_matrix[0][0]);
+	glEnable(GL_BLEND);
 
 	fbos->bindReflectionFrameBuffer();
 	renderScene(1);
@@ -998,6 +994,9 @@ drawTiles(int mode=0)
 	glUniform1i(glGetUniformLocation(this->tilesShader->Program, "clip_mode"), mode);
 
 	glUniformMatrix4fv(glGetUniformLocation(this->skyboxShader->Program, "new_view_matrix"), 1, GL_FALSE, &new_view_matrix[0][0]);
+
+	glUniform1f(glGetUniformLocation(this->tilesShader->Program, "WATER_HEIGHT"), WATER_HEIGHT);
+	
 
 	//bind VAO
 	glBindVertexArray(this->tiles->vao);

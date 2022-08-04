@@ -6,6 +6,7 @@ layout (location = 2) in vec2 texture_coordinate;
 const float PI = 3.14159;
 uniform mat4 u_model;
 uniform mat4 new_view_matrix;
+uniform float WATER_HEIGHT;
 uniform commom_matrices
 {
     mat4 u_projection;
@@ -52,17 +53,16 @@ void main()
     */
     // reflection
     if(clip_mode==1){
-        gl_ClipDistance[0] = position.y; 
+        gl_ClipDistance[0] = position.y-WATER_HEIGHT; 
         gl_Position = u_projection* u_view * u_model * vec4(position+vec3(0.0f, 0.0f, 0.0f), 1.0f);
     }
     // refraction 0.8 = 0.6+ max_height/2
     else if(clip_mode==2){
-        gl_ClipDistance[0] = -position.y;
+        //gl_ClipDistance[0] = -position.y+WATER_HEIGHT;
         gl_Position = u_projection * u_view * u_model * vec4(position, 1.0f);
     }
     else
     {
-        //gl_ClipDistance[0] = position.y-0.6f; 
         gl_Position = u_projection * u_view * u_model * vec4(position, 1.0f);
     }
 

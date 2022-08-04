@@ -304,5 +304,5 @@ class TrainView : public Fl_Gl_Window
 		WaterFrameBuffers* fbos = nullptr;
 
 		glm::mat4 new_view_matrix;
-		const float WATER_HEIGHT = 0.0f;
+		const float WATER_HEIGHT = 0.3f;
 };
