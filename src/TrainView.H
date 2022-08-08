@@ -242,6 +242,9 @@ class TrainView : public Fl_Gl_Window
 		// render scene
 		void renderScene(int);
 
+		// draw sphere to check the reflaction
+		void drawSphere();
+
 		
 	public:
 		ArcBallCam		arcball;			// keep an ArcBall for the UI

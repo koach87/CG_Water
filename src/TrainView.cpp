@@ -396,11 +396,13 @@ void TrainView::draw()
 	glLoadIdentity();
 	glMultMatrixf(&new_view_matrix[0][0]);
 	glEnable(GL_BLEND);
-
+	
 	fbos->bindReflectionFrameBuffer();
+	drawSphere();
 	renderScene(1);
 	fbos->unbindCurrentFrameBuffer();
 
+	drawSphere();
 	// refraction
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
@@ -1553,5 +1555,15 @@ renderScene(int mode =0)
 	drawSkybox();
 	// start draw water
 	drawTiles(mode);
+}
+
+void TrainView::
+drawSphere()
+{
+	glColor3f(1, 0, 0);
+	GLUquadric* quad;
+	quad = gluNewQuadric();
+	glTranslatef(0, 0, 0);
+	gluSphere(quad, 25, 100, 20);
 }
 
