@@ -20,7 +20,7 @@ uniform vec3 cameraPos;
 void main()
 {   
     vec2 ndc = (f_in.clipSpace.xy/f_in.clipSpace.w)/2.0f +0.5f;
-    vec2 reflectTexCoords = vec2(ndc.x, ndc.y);
+    vec2 reflectTexCoords = vec2(-(1-ndc.x), -(1-ndc.y));
     vec2 refractTexCoords = vec2(ndc.x, ndc.y);
 
     vec3 normal = normalize(cross(dFdx(f_in.position),dFdy(f_in.position)));
@@ -28,7 +28,7 @@ void main()
     float dis = distance(normal, toCam)*0.02f;
 
     
-    vec4 reflectionColor = texture(reflectionTexture, reflectTexCoords);
+    vec4 reflectionColor = texture(reflectionTexture, reflectTexCoords+dis);
     vec4 refractionColor = texture(refractionTexture, refractTexCoords +dis);
 
     

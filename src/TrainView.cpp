@@ -412,7 +412,7 @@ void TrainView::draw()
 	fbos->unbindCurrentFrameBuffer();
 
 	// monitor to debug
-	//drawMonitor(1);
+	// drawMonitor(1);
 
 
 	// draw scene
@@ -1175,19 +1175,19 @@ initHeightWater()
 			unsigned int w = i / 12 % width;
 			//point 0
 			vertices[i] = w * size - 1.0f + size;
-			vertices[i + 1] = 0.6f;
+			vertices[i + 1] = WATER_HEIGHT;
 			vertices[i + 2] = h * size - 1.0f + size;
 			//point 1
 			vertices[i + 3] = vertices[i] - size;
-			vertices[i + 4] = 0.6f;
+			vertices[i + 4] = WATER_HEIGHT;
 			vertices[i + 5] = vertices[i + 2];
 			//point 2
 			vertices[i + 6] = vertices[i + 3];
-			vertices[i + 7] = 0.6f;
+			vertices[i + 7] = WATER_HEIGHT;
 			vertices[i + 8] = vertices[i + 5] - size;
 			//point 3
 			vertices[i + 9] = vertices[i];
-			vertices[i + 10] = 0.6f;
+			vertices[i + 10] = WATER_HEIGHT;
 			vertices[i + 11] = vertices[i + 8];
 		}
 
